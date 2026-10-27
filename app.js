@@ -571,9 +571,114 @@ function openAdminModal(animeToSelectId = null) {
 }
 
 function closeAdminModal() {
+  if (currentEditingAnime) {
+    syncCurrentAnimeFromForm();
+    updateSidebarItem(currentEditingAnime);
+  }
+  updateStats();
+  renderHeroBanner();
+  renderLatestEpisodeReminder();
+  renderGrid();
   adminModal.classList.remove('active');
   adminModal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+}
+
+let autoSaveTimer = null;
+function showAutoSaveIndicator(text = '✓ Изменения сохранены на лету') {
+  const badge = document.getElementById('adm-autosave-badge');
+  const label = document.getElementById('adm-autosave-text');
+  if (!badge || !label) return;
+  label.textContent = text;
+  badge.classList.remove('saving');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    label.textContent = 'Все изменения применяются на лету';
+  }, 2200);
+}
+
+function updateSidebarItem(anime) {
+  if (!anime) return;
+  const item = adminAnimeList.querySelector(`.adm-list-item[data-anime-id="${anime.id}"]`);
+  if (!item) return;
+  const catIcon = anime.category === 'other' ? '👥' : '🔥';
+  const epDone = (anime.episodes_done !== undefined && anime.episodes_done !== null) ? anime.episodes_done : (anime.episodes ? anime.episodes.length : 0);
+  const totalStr = anime.episodes_total ? ` / ${anime.episodes_total}` : '';
+  const titleEl = item.querySelector('.adm-list-title');
+  const subEl = item.querySelector('.adm-list-sub');
+  if (titleEl) titleEl.textContent = `${catIcon} ${anime.title_ru}`;
+  if (subEl) subEl.textContent = `${epDone}${totalStr} серий • ${anime.status}`;
+}
+
+function highlightSidebarItem(animeId) {
+  const items = adminAnimeList.querySelectorAll('.adm-list-item');
+  items.forEach(el => {
+    if (parseInt(el.dataset.animeId) === animeId) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  });
+}
+
+function syncCurrentAnimeFromForm() {
+  if (!currentEditingAnime) return;
+
+  const titleVal = admTitleRu.value.trim();
+  if (titleVal) {
+    currentEditingAnime.title_ru = titleVal;
+  }
+  currentEditingAnime.title_en = admTitleEn.value.trim();
+  currentEditingAnime.category = admCategory.value;
+  currentEditingAnime.format = admFormat.value.trim();
+  currentEditingAnime.status = admStatus.value;
+  
+  const doneVal = admEpisodesDone ? parseInt(admEpisodesDone.value) : null;
+  currentEditingAnime.episodes_total = parseInt(admEpisodesTotal.value) || 0;
+
+  currentEditingAnime.poster_url = admPosterUrl.value.trim();
+  currentEditingAnime.banner_url = admBannerUrl.value.trim();
+  currentEditingAnime.cast = admCast.value.trim();
+  currentEditingAnime.description = admDesc.value.trim();
+  currentEditingAnime.notes = admNotes.value.trim();
+  currentEditingAnime.aliases = admAliases.value.trim();
+
+  // Read episodes from table
+  const rows = admEpisodesTbody.querySelectorAll('tr[data-ep-idx]');
+  const updatedEpisodes = [];
+  rows.forEach((row, idx) => {
+    const numInput = row.querySelector('.input-ep-num');
+    const tgInput = row.querySelector('.input-ep-tg');
+    const credInput = row.querySelector('.input-ep-credits');
+
+    if (!numInput) return;
+
+    const msgId = (tgInput && tgInput.value) ? parseInt(tgInput.value) : null;
+    const postUrl = msgId ? `https://t.me/gygdub/${msgId}` : '';
+
+    const origEp = (currentEditingAnime.episodes && currentEditingAnime.episodes[idx]) ? currentEditingAnime.episodes[idx] : {};
+
+    updatedEpisodes.push({
+      ...origEp,
+      id: origEp.id || Date.now() + idx,
+      anime_id: currentEditingAnime.id,
+      episode_num: numInput.value.trim() || `${idx + 1} серия`,
+      episode_order: idx + 1,
+      title: numInput.value.trim() || `${idx + 1} серия`,
+      cast_credits: credInput ? credInput.value.trim() : (currentEditingAnime.cast || 'Copper Dub'),
+      tg_message_id: msgId,
+      tg_post_url: postUrl
+    });
+  });
+
+  if (rows.length > 0) {
+    currentEditingAnime.episodes = updatedEpisodes;
+  }
+  currentEditingAnime.episodes_done = (doneVal !== null && !isNaN(doneVal)) ? doneVal : (currentEditingAnime.episodes ? currentEditingAnime.episodes.length : 0);
+  
+  if (admEpCount) {
+    admEpCount.textContent = currentEditingAnime.episodes ? currentEditingAnime.episodes.length : 0;
+  }
 }
 
 function renderAdminSidebar(selectId = null) {
@@ -582,30 +687,38 @@ function renderAdminSidebar(selectId = null) {
     return;
   }
 
+  const activeId = selectId || (currentEditingAnime ? currentEditingAnime.id : allAnime[0].id);
+
   adminAnimeList.innerHTML = allAnime.map(a => {
-    const isAct = selectId ? a.id === selectId : (currentEditingAnime && currentEditingAnime.id === a.id);
+    const isAct = a.id === activeId;
     const catIcon = a.category === 'other' ? '👥' : '🔥';
+    const epDone = (a.episodes_done !== undefined && a.episodes_done !== null) ? a.episodes_done : (a.episodes ? a.episodes.length : 0);
+    const totalStr = a.episodes_total ? ` / ${a.episodes_total}` : '';
     return `
-      <div class="adm-list-item ${isAct ? 'active' : ''}" onclick="selectAnimeForEdit(${a.id})">
+      <div class="adm-list-item ${isAct ? 'active' : ''}" data-anime-id="${a.id}" onclick="selectAnimeForEdit(${a.id})">
         <div class="adm-list-title">${catIcon} ${a.title_ru}</div>
-        <div class="adm-list-sub">${a.episodes ? a.episodes.length : (a.episodes_done || 0)} серий • ${a.status}</div>
+        <div class="adm-list-sub">${epDone}${totalStr} серий • ${a.status}</div>
       </div>
     `;
   }).join('');
 
-  if (selectId) {
-    selectAnimeForEdit(selectId);
-  } else if (!currentEditingAnime && allAnime.length > 0) {
-    selectAnimeForEdit(allAnime[0].id);
+  if (!currentEditingAnime || (selectId && currentEditingAnime.id !== selectId)) {
+    selectAnimeForEdit(activeId);
   }
 }
 
 function selectAnimeForEdit(animeId) {
+  // CRITICAL: Before switching to another anime, automatically sync current form edits!
+  if (currentEditingAnime && currentEditingAnime.id !== animeId) {
+    syncCurrentAnimeFromForm();
+    updateSidebarItem(currentEditingAnime);
+  }
+
   const anime = allAnime.find(a => a.id === animeId);
   if (!anime) return;
 
   currentEditingAnime = anime;
-  renderAdminSidebar();
+  highlightSidebarItem(anime.id);
 
   admAnimeId.value = anime.id;
   admTitleRu.value = anime.title_ru || '';
@@ -614,7 +727,7 @@ function selectAnimeForEdit(animeId) {
   admFormat.value = anime.format || 'ТВ-сериал';
   admStatus.value = anime.status || 'В процессе';
   if (admEpisodesDone) {
-    admEpisodesDone.value = anime.episodes ? anime.episodes.length : (anime.episodes_done || 0);
+    admEpisodesDone.value = (anime.episodes_done !== undefined && anime.episodes_done !== null) ? anime.episodes_done : (anime.episodes ? anime.episodes.length : 0);
   }
   admEpisodesTotal.value = anime.episodes_total || '';
 
@@ -630,6 +743,7 @@ function selectAnimeForEdit(animeId) {
   admAliases.value = anime.aliases || '';
 
   renderAdminEpisodesTable(anime.episodes || []);
+  showAutoSaveIndicator('✓ Загружен тайтл');
 }
 
 function renderAdminEpisodesTable(episodes) {
@@ -662,12 +776,17 @@ function renderAdminEpisodesTable(episodes) {
 
 function adminDeleteEpisode(idx) {
   if (!currentEditingAnime || !currentEditingAnime.episodes) return;
+  syncCurrentAnimeFromForm();
   currentEditingAnime.episodes.splice(idx, 1);
   renderAdminEpisodesTable(currentEditingAnime.episodes);
+  syncCurrentAnimeFromForm();
+  updateSidebarItem(currentEditingAnime);
+  showAutoSaveIndicator('✓ Серия удалена');
 }
 
 function adminAddEpisodeRow() {
   if (!currentEditingAnime) return;
+  syncCurrentAnimeFromForm();
   if (!currentEditingAnime.episodes) currentEditingAnime.episodes = [];
 
   const nextNum = currentEditingAnime.episodes.length + 1;
@@ -686,9 +805,16 @@ function adminAddEpisodeRow() {
   });
 
   renderAdminEpisodesTable(currentEditingAnime.episodes);
+  syncCurrentAnimeFromForm();
+  updateSidebarItem(currentEditingAnime);
+  showAutoSaveIndicator('✓ Серия добавлена');
 }
 
 function createNewAnimePrompt() {
+  if (currentEditingAnime) {
+    syncCurrentAnimeFromForm();
+    updateSidebarItem(currentEditingAnime);
+  }
   const newId = maxId(allAnime) + 1;
   const newAnime = {
     id: newId,
@@ -710,76 +836,40 @@ function createNewAnimePrompt() {
   };
 
   allAnime.unshift(newAnime);
-  selectAnimeForEdit(newId);
+  renderAdminSidebar(newId);
+  showAutoSaveIndicator('✓ Новый тайтл создан');
 }
 
 function maxId(arr) {
   return arr.reduce((max, item) => item.id > max ? item.id : max, 0);
 }
 
-// Save edits to current anime
+// Save edits to current anime (explicit button or form submit)
 function saveCurrentAnimeForm(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   if (!currentEditingAnime) return;
 
-  currentEditingAnime.title_ru = admTitleRu.value.trim();
-  currentEditingAnime.title_en = admTitleEn.value.trim();
-  currentEditingAnime.category = admCategory.value;
-  currentEditingAnime.format = admFormat.value.trim();
-  currentEditingAnime.status = admStatus.value;
-  currentEditingAnime.episodes_total = parseInt(admEpisodesTotal.value) || 0;
-
-  currentEditingAnime.poster_url = admPosterUrl.value.trim();
-  currentEditingAnime.banner_url = admBannerUrl.value.trim();
-  currentEditingAnime.cast = admCast.value.trim();
-  currentEditingAnime.description = admDesc.value.trim();
-  currentEditingAnime.notes = admNotes.value.trim();
-  currentEditingAnime.aliases = admAliases.value.trim();
-
-  // Read episodes from table
-  const rows = admEpisodesTbody.querySelectorAll('tr');
-  const updatedEpisodes = [];
-  rows.forEach((row, idx) => {
-    const numInput = row.querySelector('.input-ep-num');
-    const tgInput = row.querySelector('.input-ep-tg');
-    const credInput = row.querySelector('.input-ep-credits');
-
-    if (!numInput) return;
-
-    const msgId = tgInput.value ? parseInt(tgInput.value) : null;
-    const postUrl = msgId ? `https://t.me/gygdub/${msgId}` : '';
-
-    const origEp = currentEditingAnime.episodes && currentEditingAnime.episodes[idx] ? currentEditingAnime.episodes[idx] : {};
-
-    updatedEpisodes.push({
-      ...origEp,
-      id: origEp.id || Date.now() + idx,
-      anime_id: currentEditingAnime.id,
-      episode_num: numInput.value.trim() || `${idx + 1} серия`,
-      episode_order: idx + 1,
-      title: numInput.value.trim(),
-      cast_credits: credInput ? credInput.value.trim() : '',
-      tg_message_id: msgId,
-      tg_post_url: postUrl
-    });
-  });
-
-  currentEditingAnime.episodes = updatedEpisodes;
-  const doneVal = admEpisodesDone ? parseInt(admEpisodesDone.value) : null;
-  currentEditingAnime.episodes_done = (doneVal !== null && !isNaN(doneVal)) ? doneVal : updatedEpisodes.length;
-  currentEditingAnime.episodes_total = parseInt(admEpisodesTotal.value) || 0;
-
+  syncCurrentAnimeFromForm();
   updateStats();
   renderHeroBanner();
   renderLatestEpisodeReminder();
   renderGrid();
-  renderAdminSidebar();
+  updateSidebarItem(currentEditingAnime);
 
-  alert(`✓ Изменения для «${currentEditingAnime.title_ru}» сохранены локально!\nЧтобы сайт в интернете обновился, нажмите «💾 Опубликовать на GitHub».`);
+  showAutoSaveIndicator('✓ Сохранено локально! Нажмите «💾 Опубликовать на GitHub»');
 }
 
 // Publish to GitHub directly via GitHub API
 async function publishCatalogToGitHub() {
+  if (currentEditingAnime) {
+    syncCurrentAnimeFromForm();
+    updateSidebarItem(currentEditingAnime);
+  }
+  updateStats();
+  renderHeroBanner();
+  renderLatestEpisodeReminder();
+  renderGrid();
+
   const token = getGitHubToken();
   if (!token) {
     const entered = prompt('Для сохранения изменений на GitHub введите ваш Personal Access Token (ghp_...):\n(Он сохранится в вашем браузере в безопасности)');
@@ -839,7 +929,8 @@ async function publishCatalogToGitHub() {
     });
 
     if (putRes.ok) {
-      alert('🚀 УСПЕШНО ОПУБЛИКОВАНО НА GITHUB!\n\nВсе постеры, ссылки и категории сохранены. Cloudflare Pages обновит сайт в течение 10 секунд!');
+      showAutoSaveIndicator('🚀 Опубликовано на GitHub!');
+      alert('🚀 УСПЕШНО ОПУБЛИКОВАНО НА GITHUB!\n\nВсе изменения по всем тайтлам сохранены. Cloudflare обновит сайт в течение нескольких секунд!');
     } else {
       const errData = await putRes.json();
       alert('Ошибка при публикации на GitHub: ' + (errData.message || 'Проверьте токен'));
@@ -960,8 +1051,26 @@ function setupEventListeners() {
     });
   }
 
-  // Admin form events
-  document.getElementById('admin-anime-form').addEventListener('submit', saveCurrentAnimeForm);
+  // Admin form events & Reactive Auto-Save
+  const adminAnimeForm = document.getElementById('admin-anime-form');
+  if (adminAnimeForm) {
+    adminAnimeForm.addEventListener('submit', saveCurrentAnimeForm);
+    adminAnimeForm.addEventListener('input', () => {
+      syncCurrentAnimeFromForm();
+      if (currentEditingAnime) {
+        updateSidebarItem(currentEditingAnime);
+      }
+      showAutoSaveIndicator('✓ Изменения учтены');
+    });
+    adminAnimeForm.addEventListener('change', () => {
+      syncCurrentAnimeFromForm();
+      if (currentEditingAnime) {
+        updateSidebarItem(currentEditingAnime);
+      }
+      showAutoSaveIndicator('✓ Изменения применены');
+    });
+  }
+
   document.getElementById('btn-admin-save-github').addEventListener('click', publishCatalogToGitHub);
   document.getElementById('btn-admin-new-anime').addEventListener('click', createNewAnimePrompt);
   document.getElementById('btn-adm-add-episode').addEventListener('click', adminAddEpisodeRow);
