@@ -78,7 +78,41 @@ const admAliases = document.getElementById('adm-aliases');
 const admEpCount = document.getElementById('adm-ep-count');
 const admEpisodesTbody = document.getElementById('adm-episodes-tbody');
 
+// --- THEME SWITCHER (Dark vs Copper) ---
+function initTheme() {
+  const savedTheme = localStorage.getItem('copperdub_theme') || 'copper';
+  applyTheme(savedTheme);
+
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', toggleTheme);
+  }
+}
+
+function applyTheme(themeName) {
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+
+  if (themeName === 'copper') {
+    document.body.classList.add('theme-copper');
+    if (icon) icon.textContent = '🦊';
+    if (label) label.textContent = 'Копер';
+  } else {
+    document.body.classList.remove('theme-copper');
+    if (icon) icon.textContent = '🌙';
+    if (label) label.textContent = 'Тёмная';
+  }
+}
+
+function toggleTheme() {
+  const isCopper = document.body.classList.contains('theme-copper');
+  const nextTheme = isCopper ? 'dark' : 'copper';
+  localStorage.setItem('copperdub_theme', nextTheme);
+  applyTheme(nextTheme);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   if (isTelegramWebApp && tg) {
     tg.ready();
     tg.expand();
