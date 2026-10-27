@@ -610,7 +610,7 @@ body.inside-telegram #header-tg-channel-link {
 .card-poster-wrap {
   position: relative;
   width: 100%;
-  padding-top: 140%;
+  padding-top: 142%;
   background: #08090e;
   overflow: hidden;
 }
@@ -621,6 +621,7 @@ body.inside-telegram #header-tg-channel-link {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
   transition: transform 0.4s ease;
 }
 .anime-card:hover .card-poster {
@@ -1103,33 +1104,326 @@ body.inside-telegram #header-tg-channel-link {
     grid-template-columns: 1fr;
   }
   .modal-header-content {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-  .badges-row {
-    justify-content: center;
-  }
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 16px;
   }
 }
 
-@media (max-width: 600px) {
-  .stats-row {
-    grid-template-columns: 1fr;
+@media (max-width: 680px) {
+  .container {
+    padding: 0 12px;
   }
+
+  .site-header {
+    padding: 10px 0;
+  }
+  .logo-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  .logo-title {
+    font-size: 16px;
+  }
+  .logo-subtitle {
+    font-size: 10px;
+  }
+  .header-actions #header-tg-channel-link {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    min-height: auto;
+    padding: 20px 0 24px;
+  }
+  .hero-content-layout {
+    gap: 14px;
+  }
+  .hero-poster-wrap {
+    width: 140px;
+    min-width: 140px;
+    height: 200px;
+    margin: 0 auto;
+    border-radius: var(--radius-md);
+  }
+  .hero-tag {
+    font-size: 10px;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .hero-title {
+    font-size: 20px;
+    line-height: 1.25;
+    margin-bottom: 6px;
+  }
+  .hero-subtitle {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .hero-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-bottom: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hero-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .hero-buttons button {
+    width: 100%;
+    justify-content: center;
+    padding: 11px 16px;
+    font-size: 14px;
+  }
+  .hero-badge-clean {
+    width: 100%;
+    text-align: center;
+    display: block;
+    padding: 6px;
+  }
+
+  /* Latest Release / Свежий выпуск - Grid layout so nothing is squished! */
+  .latest-release-container {
+    margin-bottom: 16px;
+  }
+  .latest-release-card {
+    padding: 12px 14px;
+  }
+  .latest-release-badge {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  .latest-release-body {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .latest-release-poster-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    width: 52px;
+    height: 74px;
+    border-radius: var(--radius-sm);
+  }
+  .latest-release-info {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .latest-release-anime-name {
+    font-size: 15px;
+    line-height: 1.25;
+    margin-bottom: 2px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .latest-release-ep-title {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .latest-release-meta {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .latest-release-action {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+  .latest-release-action button {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Stats Row */
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 20px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+
+  /* Category Tabs */
+  .category-tabs-container {
+    margin-bottom: 16px;
+  }
+  .category-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding-bottom: 8px;
+  }
+  .cat-tab {
+    padding: 8px 6px;
+    font-size: 11px;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .cat-badge {
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+  .category-desc {
+    font-size: 11px;
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* Filter Pills & Search */
   .catalog-controls {
     flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .filter-pills {
+    display: flex;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-pills::-webkit-scrollbar {
+    display: none;
+  }
+  .pill {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
   }
   .search-box {
     width: 100%;
+    min-width: 100%;
   }
-  .modal {
-    padding: 10px;
+
+  /* Anime Grid: 2 clean columns on phone, posters in full glory */
+  .anime-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
-  .header-actions #header-tg-channel-link {
+  .card-poster-wrap {
+    width: 100%;
+    padding-top: 142%;
+  }
+  .card-poster {
+    object-fit: cover;
+    object-position: center top;
+  }
+  .card-content {
+    padding: 8px 8px 10px;
+  }
+  .card-title-ru {
+    font-size: 12px;
+    line-height: 1.3;
+    min-height: 32px;
+  }
+  .card-title-en {
     display: none;
+  }
+  .card-cast {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .card-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    top: 6px;
+    left: 6px;
+  }
+  .card-format-tag {
+    font-size: 9px;
+    padding: 2px 5px;
+    bottom: 6px;
+    right: 6px;
+  }
+
+  /* Modal Details */
+  .modal {
+    padding: 6px;
+  }
+  .modal-window {
+    max-height: 95vh;
+    border-radius: var(--radius-lg);
+  }
+  .modal-backdrop-banner-wrap {
+    padding: 12px;
+    min-height: 150px;
+  }
+  .modal-header-content {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+    text-align: left;
+  }
+  .modal-poster {
+    width: 78px;
+    height: 110px;
+    min-width: 78px;
+    border-radius: var(--radius-sm);
+  }
+  .modal-title-ru {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+  .modal-title-en {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .badges-row {
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  .modal-status-badge, .badge-cat, .badge-format {
+    font-size: 9px;
+    padding: 2px 5px;
+  }
+  .details-and-episodes {
+    grid-template-columns: 1fr;
+    padding: 12px 10px;
+    gap: 14px;
+  }
+  .tma-episode-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .tma-ep-title {
+    font-size: 13px;
+  }
+  .tma-ep-meta {
+    font-size: 11px;
+  }
+  .tma-ep-btn {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
 
