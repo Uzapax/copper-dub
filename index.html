@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" href="./logo.png">
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="./styles.css?v=3.5">
+  <link rel="stylesheet" href="./styles.css?v=3.6">
 </head>
 <body class="tma-body">
 
@@ -378,8 +378,14 @@
               </div>
 
               <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">Применить изменения к тайтлу</button>
-                <button type="button" id="btn-admin-delete-anime" class="btn btn-danger btn-sm">🗑 Удалить тайтл</button>
+                <div class="autosave-badge" id="adm-autosave-badge">
+                  <span class="badge-icon">✓</span>
+                  <span id="adm-autosave-text">Все изменения применяются на лету</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <button type="submit" class="btn btn-secondary btn-sm" id="btn-admin-apply-title" title="Сохранить изменения локально">✓ Применить</button>
+                  <button type="button" id="btn-admin-delete-anime" class="btn btn-danger btn-sm">🗑 Удалить тайтл</button>
+                </div>
               </div>
 
             </form>
@@ -399,6 +405,6 @@
   </footer>
 
   <!-- Frontend Logic -->
-  <script src="./app.js?v=3.5"></script>
+  <script src="./app.js?v=3.6"></script>
 </body>
 </html>
