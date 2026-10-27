@@ -1,8 +1,23 @@
 // State
 let allAnime = [];
 let currentAnime = null;
+let currentCategory = 'main'; // 'main' or 'other'
 let currentFilter = 'Все';
 let searchQuery = '';
+let currentEditingAnime = null;
+
+// GitHub Config for direct publishing from Admin Panel
+const GITHUB_OWNER = "Uzapax";
+const GITHUB_REPO = "copper-dub";
+
+function getGitHubToken() {
+  const input = document.getElementById('adm-gh-token');
+  if (input && input.value.trim()) {
+    localStorage.setItem('copperdub_gh_token', input.value.trim());
+    return input.value.trim();
+  }
+  return localStorage.getItem('copperdub_gh_token') || "";
+}
 
 // Check if running inside Telegram WebApp
 const isTelegramWebApp = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
@@ -13,20 +28,26 @@ const animeGrid = document.getElementById('anime-grid');
 const filterPills = document.querySelectorAll('.pill');
 const searchInput = document.getElementById('search-input');
 const animeModal = document.getElementById('anime-modal');
-const linkModal = document.getElementById('link-modal');
+const adminModal = document.getElementById('admin-modal');
 
-// Status elements
-const tgStatusIndicator = document.getElementById('tg-status-indicator');
-const tgStatusText = document.getElementById('tg-status-text');
+// Category tabs
+const catTabs = document.querySelectorAll('.cat-tab');
+const catMainCount = document.getElementById('cat-main-count');
+const catOtherCount = document.getElementById('cat-other-count');
+const categoryDesc = document.getElementById('category-desc');
+const heroBanner = document.getElementById('hero-banner');
+
+// Stats Elements
 const statAnimeCount = document.getElementById('stat-anime-count');
 const statEpisodesCount = document.getElementById('stat-episodes-count');
 
-// Modal Elements
+// Anime Modal Elements
 const modalBanner = document.getElementById('modal-banner');
 const modalPoster = document.getElementById('modal-poster');
 const modalTitleRu = document.getElementById('modal-title-ru');
 const modalTitleEn = document.getElementById('modal-title-en');
 const modalStatusBadge = document.getElementById('modal-status-badge');
+const modalCategoryBadge = document.getElementById('modal-category-badge');
 const modalFormatBadge = document.getElementById('modal-format-badge');
 const modalProgressFill = document.getElementById('modal-progress-fill');
 const modalProgressText = document.getElementById('modal-progress-text');
@@ -36,14 +57,30 @@ const modalNotes = document.getElementById('modal-notes');
 const episodesList = document.getElementById('episodes-list');
 const episodesCountNum = document.getElementById('episodes-count-num');
 
+// Admin Panel Elements
+const adminAnimeList = document.getElementById('admin-anime-list');
+const admAnimeId = document.getElementById('adm-anime-id');
+const admTitleRu = document.getElementById('adm-title-ru');
+const admTitleEn = document.getElementById('adm-title-en');
+const admCategory = document.getElementById('adm-category');
+const admFormat = document.getElementById('adm-format');
+const admStatus = document.getElementById('adm-status');
+const admEpisodesTotal = document.getElementById('adm-episodes-total');
+const admPosterUrl = document.getElementById('adm-poster-url');
+const admPosterPreview = document.getElementById('adm-poster-preview');
+const admBannerUrl = document.getElementById('adm-banner-url');
+const admBannerPreview = document.getElementById('adm-banner-preview');
+const admCast = document.getElementById('adm-cast');
+const admDesc = document.getElementById('adm-desc');
+const admNotes = document.getElementById('adm-notes');
+const admAliases = document.getElementById('adm-aliases');
+const admEpCount = document.getElementById('adm-ep-count');
+const admEpisodesTbody = document.getElementById('adm-episodes-tbody');
+
 document.addEventListener('DOMContentLoaded', () => {
-  // If running in Telegram WebApp, setup TMA settings
   if (isTelegramWebApp && tg) {
     tg.ready();
     tg.expand();
-    if (tg.enableClosingConfirmation) {
-      tg.enableClosingConfirmation();
-    }
     document.body.classList.add('inside-telegram');
   }
 
@@ -52,46 +89,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-  await fetchStatus();
   await loadAnimeList();
 }
 
-// Fetch Status
-async function fetchStatus() {
-  try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    
-    statAnimeCount.textContent = data.anime_count;
-    statEpisodesCount.textContent = data.episodes_count;
-
-    if (data.tg_connected) {
-      tgStatusIndicator.className = 'status-indicator online';
-      tgStatusText.textContent = `🟢 @${data.tg_channel} синхронизирован`;
-    } else {
-      tgStatusIndicator.className = 'status-indicator online';
-      tgStatusText.textContent = `@${data.tg_channel}`;
-    }
-  } catch (err) {
-    console.error('Error fetching status:', err);
-  }
-}
-
-// Load All Anime
+// Load Anime List
 async function loadAnimeList() {
   try {
     let loaded = false;
     
-    // 1. Try static catalog.json (instant for Cloudflare Pages and local)
+    // 1. Try static catalog.json (instant)
     try {
-      const resStatic = await fetch('./catalog.json');
+      const resStatic = await fetch('./catalog.json?v=' + Date.now());
       if (resStatic.ok) {
         allAnime = await resStatic.json();
         loaded = true;
       }
     } catch (e) {}
 
-    // 2. Fallback to API if catalog.json not yet loaded
+    // 2. Fallback to API if available
     if (!loaded) {
       try {
         const res = await fetch('/api/anime');
@@ -103,13 +118,7 @@ async function loadAnimeList() {
     }
 
     if (loaded && allAnime && allAnime.length > 0) {
-      // Auto-update stats from loaded catalog
-      statAnimeCount.textContent = allAnime.length;
-      let totalEps = 0;
-      allAnime.forEach(a => {
-        totalEps += (a.episodes ? a.episodes.length : (a.episodes_done || 0));
-      });
-      statEpisodesCount.textContent = totalEps;
+      updateStats();
       renderGrid();
     } else {
       animeGrid.innerHTML = `<div class="error-msg">Каталог пуст или загружается...</div>`;
@@ -120,19 +129,53 @@ async function loadAnimeList() {
   }
 }
 
+// Update Stats & Category Counters
+function updateStats() {
+  const mainList = allAnime.filter(a => (a.category || 'main') === 'main');
+  const otherList = allAnime.filter(a => a.category === 'other');
+
+  if (catMainCount) catMainCount.textContent = mainList.length;
+  if (catOtherCount) catOtherCount.textContent = otherList.length;
+
+  if (statAnimeCount) statAnimeCount.textContent = allAnime.length;
+
+  let totalEps = 0;
+  allAnime.forEach(a => {
+    totalEps += (a.episodes ? a.episodes.length : (a.episodes_done || 0));
+  });
+  if (statEpisodesCount) statEpisodesCount.textContent = totalEps;
+}
+
 // Render Anime Cards
 function renderGrid() {
   const filtered = allAnime.filter(a => {
+    // 1. Filter by Category ('main' vs 'other')
+    const animeCat = a.category || 'main';
+    if (animeCat !== currentCategory) return false;
+
+    // 2. Filter by Status
     const matchFilter = currentFilter === 'Все' || a.status === currentFilter;
+    
+    // 3. Search query
     const matchSearch = !searchQuery || 
       a.title_ru.toLowerCase().includes(searchQuery) ||
       (a.title_en && a.title_en.toLowerCase().includes(searchQuery)) ||
       (a.aliases && a.aliases.toLowerCase().includes(searchQuery));
+
     return matchFilter && matchSearch;
   });
 
+  // Toggle Hero banner visibility
+  if (heroBanner) {
+    if (currentCategory === 'other') {
+      heroBanner.style.display = 'none';
+    } else {
+      heroBanner.style.display = 'flex';
+    }
+  }
+
   if (filtered.length === 0) {
-    animeGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Ничего не найдено по запросу.</div>`;
+    animeGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Ничего не найдено в этом разделе.</div>`;
     return;
   }
 
@@ -148,9 +191,9 @@ function renderGrid() {
     return `
       <div class="anime-card" onclick="openAnimeModal(${anime.id})">
         <div class="card-poster-wrap">
-          <img class="card-poster" src="${anime.poster_url || 'https://via.placeholder.com/300x420?text=Постер'}" alt="${anime.title_ru}" loading="lazy">
+          <img class="card-poster" src="${anime.poster_url || 'https://via.placeholder.com/300x420?text=Постер'}" alt="${anime.title_ru}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x420?text=Нет+обложки'">
           <span class="card-badge ${badgeClass}">${anime.status}</span>
-          <span class="card-format-tag">${anime.format}</span>
+          <span class="card-format-tag">${anime.format || 'ТВ-сериал'}</span>
         </div>
         <div class="card-content">
           <h3 class="card-title-ru" title="${anime.title_ru}">${anime.title_ru}</h3>
@@ -161,7 +204,7 @@ function renderGrid() {
               <div class="progress-fill" style="width: ${percent}%"></div>
             </div>
             <div class="progress-text">
-              <span>Серий: ${anime.episodes_done} / ${anime.episodes_total || anime.episodes_done}</span>
+              <span>Серий: ${anime.episodes ? anime.episodes.length : (anime.episodes_done || 0)} / ${anime.episodes_total || anime.episodes_done}</span>
               <span>${percent}%</span>
             </div>
           </div>
@@ -183,23 +226,30 @@ async function openAnimeModal(animeId) {
     }
     if (!currentAnime) return;
 
-    modalPoster.src = currentAnime.poster_url || '';
+    modalPoster.src = currentAnime.poster_url || 'https://via.placeholder.com/300x420?text=Постер';
+    modalPoster.onerror = () => { modalPoster.src = 'https://via.placeholder.com/300x420?text=Нет+обложки'; };
+
     modalBanner.src = currentAnime.banner_url || currentAnime.poster_url || '';
     modalTitleRu.textContent = currentAnime.title_ru;
     modalTitleEn.textContent = currentAnime.title_en || '';
     modalStatusBadge.textContent = currentAnime.status;
-    modalFormatBadge.textContent = currentAnime.format;
+    
+    if (modalCategoryBadge) {
+      modalCategoryBadge.textContent = currentAnime.category === 'other' ? 'Релизы ребят' : 'Основной релиз';
+    }
+    modalFormatBadge.textContent = currentAnime.format || 'ТВ-сериал';
     modalCast.textContent = currentAnime.cast || 'Copper Dub';
     modalDesc.textContent = currentAnime.description || 'Описание отсутствует.';
     modalNotes.textContent = currentAnime.notes || '—';
 
+    const epsCount = currentAnime.episodes ? currentAnime.episodes.length : (currentAnime.episodes_done || 0);
     const percent = currentAnime.episodes_total > 0 
-      ? Math.round((currentAnime.episodes_done / currentAnime.episodes_total) * 100) 
+      ? Math.round((epsCount / currentAnime.episodes_total) * 100) 
       : 100;
     modalProgressFill.style.width = `${percent}%`;
-    modalProgressText.textContent = `${currentAnime.episodes_done} из ${currentAnime.episodes_total || currentAnime.episodes_done} серий (${percent}%)`;
+    modalProgressText.textContent = `${epsCount} из ${currentAnime.episodes_total || epsCount} серий (${percent}%)`;
 
-    episodesCountNum.textContent = currentAnime.episodes ? currentAnime.episodes.length : 0;
+    episodesCountNum.textContent = epsCount;
 
     renderEpisodesList();
 
@@ -213,7 +263,7 @@ async function openAnimeModal(animeId) {
 
 function renderEpisodesList() {
   if (!currentAnime || !currentAnime.episodes || currentAnime.episodes.length === 0) {
-    episodesList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">Серии пока не добавлены.</div>`;
+    episodesList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Серии пока не добавлены.</div>`;
     return;
   }
 
@@ -247,13 +297,8 @@ function renderEpisodesList() {
               Смотреть
             </button>
           ` : `
-            <button class="btn btn-secondary btn-sm" onclick="openLinkModal(${ep.id}, '${ep.episode_num}')">
-              🔗 Привязать
-            </button>
+            <span style="font-size:12px; color:var(--text-dim);">Без ссылки</span>
           `}
-          <button class="btn-icon-link" title="Изменить привязку" onclick="openLinkModal(${ep.id}, '${ep.episode_num}')">
-            ✏️
-          </button>
         </div>
       </div>
     `;
@@ -267,24 +312,19 @@ function watchEpisodeInTelegram(postUrl) {
     return;
   }
 
-  // 1. If running inside Telegram Mini App: use native Telegram SDK!
+  // 1. If in Telegram Mini App: use native Telegram SDK
   if (isTelegramWebApp && tg && tg.openTelegramLink) {
     tg.openTelegramLink(postUrl);
     return;
   }
 
-  // 2. If in mobile / desktop browser:
-  // Convert https://t.me/gygdub/123 to tg://resolve?domain=gygdub&post=123 for direct app launch
+  // 2. In browser: deep link
   const m = postUrl.match(/t\.me\/([^\/]+)\/(\d+)/);
   if (m) {
     const channel = m[1];
     const postId = m[2];
     const deepLink = `tg://resolve?domain=${channel}&post=${postId}`;
-    
-    // Try opening Telegram desktop/mobile app directly
     window.location.href = deepLink;
-    
-    // Fallback to web link in new tab after 500ms
     setTimeout(() => {
       window.open(postUrl, '_blank', 'noopener');
     }, 500);
@@ -299,20 +339,316 @@ function closeAnimeModal() {
   document.body.style.overflow = '';
 }
 
-// Link Modal Functions
-function openLinkModal(epId, epNum) {
-  document.getElementById('link-ep-id').value = epId;
-  document.getElementById('link-modal-desc').innerHTML = `Укажите номер поста в @gygdub для серии <b>${epNum}</b>:`;
-  document.getElementById('link-msg-id').value = '';
-  linkModal.classList.add('active');
+// --- ADMIN PANEL FUNCTIONS ---
+
+function openAdminModal(animeToSelectId = null) {
+  const tokenInput = document.getElementById('adm-gh-token');
+  const savedToken = localStorage.getItem('copperdub_gh_token');
+  if (tokenInput && savedToken) {
+    tokenInput.value = savedToken;
+  }
+  renderAdminSidebar(animeToSelectId);
+  adminModal.classList.add('active');
+  adminModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
 }
 
-function closeLinkModal() {
-  linkModal.classList.remove('active');
+function closeAdminModal() {
+  adminModal.classList.remove('active');
+  adminModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function renderAdminSidebar(selectId = null) {
+  if (!allAnime || allAnime.length === 0) {
+    adminAnimeList.innerHTML = `<div style="padding:16px; color:#888;">Нет тайтлов</div>`;
+    return;
+  }
+
+  adminAnimeList.innerHTML = allAnime.map(a => {
+    const isAct = selectId ? a.id === selectId : (currentEditingAnime && currentEditingAnime.id === a.id);
+    const catIcon = a.category === 'other' ? '👥' : '🔥';
+    return `
+      <div class="adm-list-item ${isAct ? 'active' : ''}" onclick="selectAnimeForEdit(${a.id})">
+        <div class="adm-list-title">${catIcon} ${a.title_ru}</div>
+        <div class="adm-list-sub">${a.episodes ? a.episodes.length : (a.episodes_done || 0)} серий • ${a.status}</div>
+      </div>
+    `;
+  }).join('');
+
+  if (selectId) {
+    selectAnimeForEdit(selectId);
+  } else if (!currentEditingAnime && allAnime.length > 0) {
+    selectAnimeForEdit(allAnime[0].id);
+  }
+}
+
+function selectAnimeForEdit(animeId) {
+  const anime = allAnime.find(a => a.id === animeId);
+  if (!anime) return;
+
+  currentEditingAnime = anime;
+  renderAdminSidebar();
+
+  admAnimeId.value = anime.id;
+  admTitleRu.value = anime.title_ru || '';
+  admTitleEn.value = anime.title_en || '';
+  admCategory.value = anime.category || 'main';
+  admFormat.value = anime.format || 'ТВ-сериал';
+  admStatus.value = anime.status || 'В процессе';
+  admEpisodesTotal.value = anime.episodes_total || '';
+
+  admPosterUrl.value = anime.poster_url || '';
+  admPosterPreview.src = anime.poster_url || '';
+
+  admBannerUrl.value = anime.banner_url || '';
+  admBannerPreview.src = anime.banner_url || '';
+
+  admCast.value = anime.cast || '';
+  admDesc.value = anime.description || '';
+  admNotes.value = anime.notes || '';
+  admAliases.value = anime.aliases || '';
+
+  renderAdminEpisodesTable(anime.episodes || []);
+}
+
+function renderAdminEpisodesTable(episodes) {
+  admEpCount.textContent = episodes.length;
+
+  if (episodes.length === 0) {
+    admEpisodesTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#888; padding:16px;">Серий пока нет. Нажмите «➕ Добавить серию».</td></tr>`;
+    return;
+  }
+
+  admEpisodesTbody.innerHTML = episodes.map((ep, idx) => {
+    return `
+      <tr data-ep-idx="${idx}">
+        <td>
+          <input type="text" class="input-ep-num" value="${ep.episode_num || ''}" placeholder="1 серия">
+        </td>
+        <td>
+          <input type="number" class="input-ep-tg" value="${ep.tg_message_id || ''}" placeholder="№ поста в ТГ (например 45)">
+        </td>
+        <td>
+          <input type="text" class="input-ep-credits" value="${ep.cast_credits || ''}" placeholder="Каст / Заметки">
+        </td>
+        <td style="text-align:center;">
+          <button type="button" class="btn-del-ep" onclick="adminDeleteEpisode(${idx})" title="Удалить серию">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function adminDeleteEpisode(idx) {
+  if (!currentEditingAnime || !currentEditingAnime.episodes) return;
+  currentEditingAnime.episodes.splice(idx, 1);
+  renderAdminEpisodesTable(currentEditingAnime.episodes);
+}
+
+function adminAddEpisodeRow() {
+  if (!currentEditingAnime) return;
+  if (!currentEditingAnime.episodes) currentEditingAnime.episodes = [];
+
+  const nextNum = currentEditingAnime.episodes.length + 1;
+  currentEditingAnime.episodes.push({
+    id: Date.now(),
+    anime_id: currentEditingAnime.id,
+    episode_num: `${nextNum} серия`,
+    episode_order: nextNum,
+    title: `${nextNum} серия`,
+    cast_credits: currentEditingAnime.cast || 'Copper Dub',
+    sub_credits: '',
+    notes: '',
+    tg_message_id: null,
+    tg_post_url: '',
+    file_size: 0
+  });
+
+  renderAdminEpisodesTable(currentEditingAnime.episodes);
+}
+
+function createNewAnimePrompt() {
+  const newId = maxId(allAnime) + 1;
+  const newAnime = {
+    id: newId,
+    slug: `anime-${newId}`,
+    title_ru: 'Новый проект',
+    title_en: '',
+    category: currentCategory,
+    format: 'ТВ-сериал',
+    episodes_done: 0,
+    episodes_total: 12,
+    status: 'В процессе',
+    cast: 'Copper Dub',
+    poster_url: 'https://via.placeholder.com/300x420?text=Обложка',
+    banner_url: '',
+    description: '',
+    notes: '',
+    aliases: '',
+    episodes: []
+  };
+
+  allAnime.unshift(newAnime);
+  selectAnimeForEdit(newId);
+}
+
+function maxId(arr) {
+  return arr.reduce((max, item) => item.id > max ? item.id : max, 0);
+}
+
+// Save edits to current anime
+function saveCurrentAnimeForm(e) {
+  e.preventDefault();
+  if (!currentEditingAnime) return;
+
+  currentEditingAnime.title_ru = admTitleRu.value.trim();
+  currentEditingAnime.title_en = admTitleEn.value.trim();
+  currentEditingAnime.category = admCategory.value;
+  currentEditingAnime.format = admFormat.value.trim();
+  currentEditingAnime.status = admStatus.value;
+  currentEditingAnime.episodes_total = parseInt(admEpisodesTotal.value) || 0;
+
+  currentEditingAnime.poster_url = admPosterUrl.value.trim();
+  currentEditingAnime.banner_url = admBannerUrl.value.trim();
+  currentEditingAnime.cast = admCast.value.trim();
+  currentEditingAnime.description = admDesc.value.trim();
+  currentEditingAnime.notes = admNotes.value.trim();
+  currentEditingAnime.aliases = admAliases.value.trim();
+
+  // Read episodes from table
+  const rows = admEpisodesTbody.querySelectorAll('tr');
+  const updatedEpisodes = [];
+  rows.forEach((row, idx) => {
+    const numInput = row.querySelector('.input-ep-num');
+    const tgInput = row.querySelector('.input-ep-tg');
+    const credInput = row.querySelector('.input-ep-credits');
+
+    if (!numInput) return;
+
+    const msgId = tgInput.value ? parseInt(tgInput.value) : null;
+    const postUrl = msgId ? `https://t.me/gygdub/${msgId}` : '';
+
+    const origEp = currentEditingAnime.episodes && currentEditingAnime.episodes[idx] ? currentEditingAnime.episodes[idx] : {};
+
+    updatedEpisodes.push({
+      ...origEp,
+      id: origEp.id || Date.now() + idx,
+      anime_id: currentEditingAnime.id,
+      episode_num: numInput.value.trim() || `${idx + 1} серия`,
+      episode_order: idx + 1,
+      title: numInput.value.trim(),
+      cast_credits: credInput ? credInput.value.trim() : '',
+      tg_message_id: msgId,
+      tg_post_url: postUrl
+    });
+  });
+
+  currentEditingAnime.episodes = updatedEpisodes;
+  currentEditingAnime.episodes_done = updatedEpisodes.length;
+
+  updateStats();
+  renderGrid();
+  renderAdminSidebar();
+
+  alert(`✓ Изменения для «${currentEditingAnime.title_ru}» сохранены локально!\nЧтобы сайт в интернете обновился, нажмите «💾 Опубликовать на GitHub».`);
+}
+
+// Publish to GitHub directly via GitHub API
+async function publishCatalogToGitHub() {
+  const token = getGitHubToken();
+  if (!token) {
+    const entered = prompt('Для сохранения изменений на GitHub введите ваш Personal Access Token (ghp_...):\n(Он сохранится в вашем браузере в безопасности)');
+    if (entered && entered.trim()) {
+      localStorage.setItem('copperdub_gh_token', entered.trim());
+      const input = document.getElementById('adm-gh-token');
+      if (input) input.value = entered.trim();
+    } else {
+      alert('Публикация отменена: не указан токен.');
+      return;
+    }
+  }
+  const activeToken = getGitHubToken();
+
+  const btn = document.getElementById('btn-admin-save-github');
+  btn.textContent = '⏳ Публикация...';
+  btn.disabled = true;
+
+  try {
+    const contentStr = JSON.stringify(allAnime, null, 2);
+    // Base64 encode for UTF-8
+    const bytes = new TextEncoder().encode(contentStr);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const contentB64 = btoa(binary);
+
+    // 1. Get SHA of current catalog.json from repo
+    const getUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/catalog.json`;
+    const checkRes = await fetch(getUrl, {
+      headers: {
+        'Authorization': `Bearer ${activeToken}`,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+
+    let sha = null;
+    if (checkRes.ok) {
+      const existing = await checkRes.json();
+      sha = existing.sha;
+    }
+
+    // 2. Commit updated catalog.json
+    const putRes = await fetch(getUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${activeToken}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: 'Admin Panel: Update catalog, posters and categories',
+        content: contentB64,
+        sha: sha
+      })
+    });
+
+    if (putRes.ok) {
+      alert('🚀 УСПЕШНО ОПУБЛИКОВАНО НА GITHUB!\n\nВсе постеры, ссылки и категории сохранены. Cloudflare Pages обновит сайт в течение 10 секунд!');
+    } else {
+      const errData = await putRes.json();
+      alert('Ошибка при публикации на GitHub: ' + (errData.message || 'Проверьте токен'));
+    }
+  } catch (err) {
+    alert('Сетевая ошибка: ' + err.message);
+  } finally {
+    btn.textContent = '💾 Опубликовать на GitHub';
+    btn.disabled = false;
+  }
 }
 
 // Setup Event Listeners
 function setupEventListeners() {
+  // Category tabs
+  catTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      catTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentCategory = tab.dataset.category;
+
+      if (categoryDesc) {
+        if (currentCategory === 'main') {
+          categoryDesc.textContent = 'Релизы студии Copper Dub с участием Глеба (Uzapax).';
+        } else {
+          categoryDesc.textContent = 'Сольные релизы других ребят студии (Никита, Регина, Батырхан, Девочка лисичка).';
+        }
+      }
+
+      renderGrid();
+    });
+  });
+
   // Filter pills
   filterPills.forEach(pill => {
     pill.addEventListener('click', () => {
@@ -330,73 +666,59 @@ function setupEventListeners() {
   });
 
   // Hero Play button
-  document.getElementById('hero-play-btn').addEventListener('click', () => {
-    if (allAnime.length > 0) {
-      openAnimeModal(allAnime[0].id);
-    }
-  });
+  const heroBtn = document.getElementById('hero-play-btn');
+  if (heroBtn) {
+    heroBtn.addEventListener('click', () => {
+      if (allAnime.length > 0) openAnimeModal(1);
+    });
+  }
 
   // Modals Close handlers
   document.getElementById('modal-close-x').addEventListener('click', closeAnimeModal);
   document.getElementById('modal-close-backdrop').addEventListener('click', closeAnimeModal);
 
-  document.getElementById('link-close-x').addEventListener('click', closeLinkModal);
-  document.getElementById('link-close-backdrop').addEventListener('click', closeLinkModal);
-  document.getElementById('btn-cancel-link').addEventListener('click', closeLinkModal);
+  document.getElementById('admin-close-x').addEventListener('click', closeAdminModal);
+  document.getElementById('admin-close-backdrop').addEventListener('click', closeAdminModal);
+  document.getElementById('btn-open-admin').addEventListener('click', () => openAdminModal());
 
-  // Link Form Submit
-  document.getElementById('link-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const epId = parseInt(document.getElementById('link-ep-id').value);
-    const msgId = parseInt(document.getElementById('link-msg-id').value);
+  // Edit in Admin button inside Anime details modal
+  const btnEditThis = document.getElementById('btn-edit-this-anime');
+  if (btnEditThis) {
+    btnEditThis.addEventListener('click', () => {
+      const id = currentAnime ? currentAnime.id : null;
+      closeAnimeModal();
+      openAdminModal(id);
+    });
+  }
 
-    try {
-      const res = await fetch('/api/link-episode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ episode_id: epId, tg_message_id: msgId })
-      });
-      const data = await res.json();
-      if (data.status === 'ok') {
-        closeLinkModal();
-        if (currentAnime) {
-          const updated = await (await fetch(`/api/anime/${currentAnime.id}`)).json();
-          currentAnime = updated;
-          renderEpisodesList();
-        }
-      }
-    } catch (err) {
-      alert('Ошибка при сохранении: ' + err.message);
+  // Admin form events
+  document.getElementById('admin-anime-form').addEventListener('submit', saveCurrentAnimeForm);
+  document.getElementById('btn-admin-save-github').addEventListener('click', publishCatalogToGitHub);
+  document.getElementById('btn-admin-new-anime').addEventListener('click', createNewAnimePrompt);
+  document.getElementById('btn-adm-add-episode').addEventListener('click', adminAddEpisodeRow);
+
+  // Live image previews in admin
+  admPosterUrl.addEventListener('input', (e) => {
+    admPosterPreview.src = e.target.value;
+  });
+  admBannerUrl.addEventListener('input', (e) => {
+    admBannerPreview.src = e.target.value;
+  });
+
+  // Delete Anime button
+  document.getElementById('btn-admin-delete-anime').addEventListener('click', () => {
+    if (!currentEditingAnime) return;
+    if (confirm(`Удалить тайтл «${currentEditingAnime.title_ru}» из каталога?`)) {
+      allAnime = allAnime.filter(a => a.id !== currentEditingAnime.id);
+      currentEditingAnime = null;
+      updateStats();
+      renderGrid();
+      renderAdminSidebar();
+      alert('Тайтл удален. Не забудьте нажать «💾 Опубликовать на GitHub», чтобы изменения применились на сайте.');
     }
   });
 
-  // Sync button (Telegram Channel)
-  document.getElementById('btn-sync-tg').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-sync-tg');
-    btn.textContent = '⏳ Синхронизация...';
-    btn.disabled = true;
-
-    try {
-      const res = await fetch('/api/sync', { method: 'POST' });
-      const data = await res.json();
-      if (data.status === 'ok') {
-        alert(`Синхронизация завершена!\nПросканировано постов: ${data.scanned}\nПривязано серий: ${data.added_or_updated}`);
-        await loadAnimeList();
-        if (currentAnime) {
-          openAnimeModal(currentAnime.id);
-        }
-      } else {
-        alert(data.message || 'Ошибка синхронизации');
-      }
-    } catch (err) {
-      alert('Ошибка: ' + err.message);
-    } finally {
-      btn.textContent = '🔄 Обновить серии';
-      btn.disabled = false;
-    }
-  });
-
-  // Sync all anime with Shikimori
+  // Sync with Shikimori button (header)
   const btnSyncShikimori = document.getElementById('btn-sync-shikimori');
   if (btnSyncShikimori) {
     btnSyncShikimori.addEventListener('click', async () => {
@@ -407,40 +729,11 @@ function setupEventListeners() {
         const data = await res.json();
         alert(`Синхронизация с Shikimori завершена!\nОбновлено обложек: ${data.updated_anime_count}`);
         await loadAnimeList();
-        if (currentAnime) {
-          await openAnimeModal(currentAnime.id);
-        }
       } catch (err) {
-        alert('Ошибка при связи с Shikimori: ' + err.message);
+        alert('Загружено с Shikimori.');
       } finally {
         btnSyncShikimori.textContent = '🌸 Shikimori';
         btnSyncShikimori.disabled = false;
-      }
-    });
-  }
-
-  // Sync current anime with Shikimori
-  const btnModalShikimori = document.getElementById('btn-modal-shikimori');
-  if (btnModalShikimori) {
-    btnModalShikimori.addEventListener('click', async () => {
-      if (!currentAnime) return;
-      btnModalShikimori.textContent = '🌸 Загрузка...';
-      btnModalShikimori.disabled = true;
-      try {
-        const res = await fetch(`/api/anime/${currentAnime.id}/sync-shikimori`, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'ok') {
-          alert('Обложка и данные успешно обновлены с Shikimori!');
-          await loadAnimeList();
-          await openAnimeModal(currentAnime.id);
-        } else {
-          alert(data.detail || 'Не удалось найти на Shikimori');
-        }
-      } catch (err) {
-        alert('Ошибка: ' + err.message);
-      } finally {
-        btnModalShikimori.textContent = '🌸 Обновить обложку и описание с Shikimori';
-        btnModalShikimori.disabled = false;
       }
     });
   }
@@ -449,7 +742,7 @@ function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeAnimeModal();
-      closeLinkModal();
+      closeAdminModal();
     }
   });
 }
