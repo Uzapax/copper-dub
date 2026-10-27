@@ -30,15 +30,11 @@
       </div>
 
       <div class="header-actions">
-        <div id="tg-status-indicator" class="status-indicator online" title="Канал синхронизирован">
-          <span class="status-dot"></span>
-          <span id="tg-status-text">@gygdub онлайн</span>
-        </div>
+        <button id="btn-open-admin" class="btn btn-secondary btn-sm" title="Админ-панель">
+          ⚙️ Админка
+        </button>
         <button id="btn-sync-shikimori" class="btn btn-secondary btn-sm" title="Обновить с Shikimori">
           🌸 Shikimori
-        </button>
-        <button id="btn-sync-tg" class="btn btn-primary btn-sm" title="Синхронизация с каналом">
-          🔄 Обновить серии
         </button>
         <a id="header-tg-channel-link" href="https://t.me/gygdub" target="_blank" rel="noopener" class="btn btn-tg btn-sm">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -99,6 +95,21 @@
       </div>
     </div>
 
+    <!-- Category Tabs: Main vs Other Projects -->
+    <div class="category-tabs-container">
+      <div class="category-tabs">
+        <button class="cat-tab active" data-category="main">
+          🔥 Основной каталог <span class="cat-badge" id="cat-main-count">6</span>
+        </button>
+        <button class="cat-tab" data-category="other">
+          👥 Другие проекты (Релизы ребят) <span class="cat-badge" id="cat-other-count">5</span>
+        </button>
+      </div>
+      <p class="category-desc" id="category-desc">
+        Релизы студии Copper Dub с участием Глеба (Uzapax).
+      </p>
+    </div>
+
     <!-- Controls / Filters / Search -->
     <div class="catalog-controls">
       <div class="filter-pills">
@@ -121,7 +132,7 @@
 
   </main>
 
-  <!-- Anime Details & Episode Selector Modal -->
+  <!-- Anime Details Modal -->
   <div class="modal" id="anime-modal" aria-hidden="true">
     <div class="modal-backdrop" id="modal-close-backdrop"></div>
     <div class="modal-window">
@@ -139,6 +150,7 @@
             <div class="modal-title-group">
               <div class="badges-row">
                 <span id="modal-status-badge" class="badge">В процессе</span>
+                <span id="modal-category-badge" class="badge-cat">Основной релиз</span>
                 <span id="modal-format-badge" class="badge-format">ТВ-сериал</span>
               </div>
               <h2 id="modal-title-ru" class="modal-title-ru">Название</h2>
@@ -174,9 +186,9 @@
               <p id="modal-notes">—</p>
             </div>
 
-            <div class="info-block">
-              <button id="btn-modal-shikimori" class="btn btn-secondary btn-sm">
-                🌸 Обновить обложку и описание с Shikimori
+            <div class="info-block admin-actions-row">
+              <button id="btn-edit-this-anime" class="btn btn-secondary btn-sm">
+                ✏️ Редактировать в админке
               </button>
             </div>
           </div>
@@ -186,7 +198,7 @@
             <div class="episodes-header">
               <div>
                 <h4>Список серий (<span id="episodes-count-num">0</span>)</h4>
-                <p class="episodes-subhint">Нажмите на серию, чтобы мгновенно открыть её в Telegram</p>
+                <p class="episodes-subhint">Нажмите «Смотреть», чтобы открыть серию в Telegram</p>
               </div>
             </div>
             
@@ -201,29 +213,151 @@
     </div>
   </div>
 
-  <!-- Manual Link Post Modal -->
-  <div class="modal" id="link-modal" aria-hidden="true">
-    <div class="modal-backdrop" id="link-close-backdrop"></div>
-    <div class="modal-window modal-sm">
-      <button class="modal-close-btn" id="link-close-x">&times;</button>
-      <div class="settings-modal-content">
-        <h3>🔗 Привязать серию к посту Telegram</h3>
-        <p class="settings-desc" id="link-modal-desc">
-          Укажите номер поста в @gygdub:
-        </p>
+  <!-- Admin Panel Modal -->
+  <div class="modal" id="admin-modal" aria-hidden="true">
+    <div class="modal-backdrop" id="admin-close-backdrop"></div>
+    <div class="modal-window modal-admin">
+      <button class="modal-close-btn" id="admin-close-x">&times;</button>
+      
+      <div class="admin-modal-inner">
+        <div class="admin-header">
+          <div>
+            <h3>⚡ Панель управления Copper Dub</h3>
+            <p class="admin-sub">Редактирование постеров, ссылок, категорий и серий</p>
+          </div>
+          <div class="admin-header-btns">
+            <button id="btn-admin-new-anime" class="btn btn-secondary btn-sm">➕ Создать тайтл</button>
+            <button id="btn-admin-save-github" class="btn btn-primary btn-sm">💾 Опубликовать на GitHub</button>
+          </div>
+        </div>
 
-        <form id="link-form">
-          <input type="hidden" id="link-ep-id">
-          <div class="form-group">
-            <label>Номер поста в канале (Message ID):</label>
-            <input type="number" id="link-msg-id" placeholder="Например: 12" required>
+        <div class="admin-body-layout">
+          <!-- Left: Anime Selector List -->
+          <div class="admin-sidebar">
+            <div class="admin-sidebar-header">Выберите тайтл:</div>
+            <div class="admin-anime-list" id="admin-anime-list">
+              <!-- Injected by JS -->
+            </div>
           </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Привязать</button>
-            <button type="button" id="btn-cancel-link" class="btn btn-secondary">Отмена</button>
+          <!-- Right: Anime Edit Form -->
+          <div class="admin-form-panel">
+            <form id="admin-anime-form">
+              <input type="hidden" id="adm-anime-id">
+              
+              <div class="admin-form-row">
+                <div class="form-group flex-2">
+                  <label>Название на русском:</label>
+                  <input type="text" id="adm-title-ru" required>
+                </div>
+                <div class="form-group flex-2">
+                  <label>Название на англ. / ромадзи:</label>
+                  <input type="text" id="adm-title-en">
+                </div>
+                <div class="form-group flex-1">
+                  <label>Категория каталога:</label>
+                  <select id="adm-category" class="admin-select">
+                    <option value="main">🔥 Основной каталог (Copper Dub / Глеб)</option>
+                    <option value="other">👥 Другие проекты (Релизы ребят)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="admin-form-row">
+                <div class="form-group flex-1">
+                  <label>Формат:</label>
+                  <input type="text" id="adm-format" placeholder="ТВ-сериал">
+                </div>
+                <div class="form-group flex-1">
+                  <label>Статус:</label>
+                  <select id="adm-status" class="admin-select">
+                    <option value="В процессе">В процессе</option>
+                    <option value="Завершено">Завершено</option>
+                    <option value="На паузе">На паузе</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label>Всего серий план:</label>
+                  <input type="number" id="adm-episodes-total" placeholder="12">
+                </div>
+              </div>
+
+              <!-- Visual Poster & Banner Editor -->
+              <div class="admin-media-editor">
+                <div class="admin-media-field">
+                  <label>Ссылка на постер (Poster URL):</label>
+                  <div class="media-input-with-preview">
+                    <input type="url" id="adm-poster-url" placeholder="https://...">
+                    <div class="media-thumb-box">
+                      <img id="adm-poster-preview" src="" alt="Превью" onerror="this.src='https://via.placeholder.com/60x85?text=Нет'">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="admin-media-field">
+                  <label>Ссылка на фон/баннер (Banner URL):</label>
+                  <div class="media-input-with-preview">
+                    <input type="url" id="adm-banner-url" placeholder="https://...">
+                    <div class="media-thumb-box banner-box">
+                      <img id="adm-banner-preview" src="" alt="Превью" onerror="this.src='https://via.placeholder.com/120x60?text=Нет'">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Озвучка / Каст:</label>
+                <input type="text" id="adm-cast" placeholder="Глеб (Uzapax)">
+              </div>
+
+              <div class="form-group">
+                <label>Описание (синопсис):</label>
+                <textarea id="adm-desc" rows="3"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Примечания к релизу:</label>
+                <input type="text" id="adm-notes" placeholder="Сабы, сведение и т.д.">
+              </div>
+
+              <div class="form-group">
+                <label>Синонимы для авто-поиска (через запятую):</label>
+                <input type="text" id="adm-aliases" placeholder="Блич, Блич ТКВ, Bleach">
+              </div>
+
+              <!-- Episodes Manager Table -->
+              <div class="admin-episodes-section">
+                <div class="admin-episodes-top">
+                  <h4>Эпизоды тайтла (<span id="adm-ep-count">0</span>)</h4>
+                  <button type="button" id="btn-adm-add-episode" class="btn btn-secondary btn-sm">➕ Добавить серию</button>
+                </div>
+                
+                <div class="admin-episodes-table-wrap">
+                  <table class="admin-ep-table">
+                    <thead>
+                      <tr>
+                        <th>Номер / Название</th>
+                        <th>Номер поста TG</th>
+                        <th>Каст / Сабы</th>
+                        <th>Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adm-episodes-tbody">
+                      <!-- Injected by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="admin-form-actions">
+                <button type="submit" class="btn btn-primary">Применить изменения к тайтлу</button>
+                <button type="button" id="btn-admin-delete-anime" class="btn btn-danger btn-sm">🗑 Удалить тайтл</button>
+              </div>
+
+            </form>
           </div>
-        </form>
+        </div>
+
       </div>
     </div>
   </div>
