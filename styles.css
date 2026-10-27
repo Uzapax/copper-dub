@@ -358,10 +358,129 @@ body.inside-telegram #header-tg-channel-link {
   padding-bottom: 80px;
 }
 
+/* Latest Release Reminder Card */
+.latest-release-container {
+  margin-bottom: 24px;
+}
+
+.latest-release-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.12) 0%, rgba(26, 29, 38, 0.95) 100%);
+  border: 1px solid rgba(255, 107, 0, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 15px rgba(255, 107, 0, 0.1);
+  overflow: hidden;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.latest-release-card:hover {
+  border-color: rgba(255, 107, 0, 0.6);
+}
+
+.latest-release-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #ff8533;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  background: #ff6b00;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulseGlow 1.8s infinite;
+}
+
+@keyframes pulseGlow {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(255, 107, 0, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(255, 107, 0, 0);
+  }
+}
+
+.latest-release-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.latest-release-poster-wrap {
+  width: 58px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.latest-ep-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.latest-release-poster-wrap:hover .latest-ep-poster {
+  transform: scale(1.05);
+}
+
+.latest-release-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.latest-release-anime-name {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  transition: color 0.2s ease;
+}
+
+.latest-release-anime-name:hover {
+  color: var(--primary);
+}
+
+.latest-release-ep-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.latest-release-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.latest-release-action {
+  flex-shrink: 0;
+}
+
 /* Stats Row */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   margin-bottom: 32px;
 }
