@@ -519,10 +519,15 @@ function closeAnimeModal() {
   document.body.style.overflow = '';
 }
 
-// --- ADMIN ACCESS & AUTHENTICATION ---
+// --- ADMIN ACCESS & AUTHENTICATION (ВХОД ТОЛЬКО ПО GITHUB ТОКЕНУ) ---
+
+function isUserAdminAuthorized() {
+  const token = localStorage.getItem('copperdub_gh_token');
+  return Boolean(token && (token.startsWith('ghp_') || token.startsWith('github_pat_')));
+}
 
 function checkAuthStatus() {
-  const isAuth = localStorage.getItem('copperdub_admin_auth') === '1' || Boolean(localStorage.getItem('copperdub_gh_token'));
+  const isAuth = isUserAdminAuthorized();
   const btnOpenAdmin = document.getElementById('btn-open-admin');
   if (btnOpenAdmin) {
     btnOpenAdmin.style.display = isAuth ? 'inline-flex' : 'none';
@@ -534,25 +539,32 @@ function checkAuthStatus() {
 }
 
 function checkAdminAccessAndOpen(animeId = null) {
-  const isAuth = localStorage.getItem('copperdub_admin_auth') === '1' || Boolean(localStorage.getItem('copperdub_gh_token'));
-  if (isAuth) {
+  if (isUserAdminAuthorized()) {
     openAdminModal(animeId);
     return;
   }
 
-  const pass = prompt('🔐 Вход в панель администратора Copper Dub:\nВведите пароль или ваш токен GitHub:');
-  if (!pass) return;
+  const entered = prompt('🔐 Вход в админ-панель Copper Dub:\nВведите ваш GitHub Personal Access Token (начинается на ghp_...):\n\n(Обычные пароли отключены. Доступ только по личному токену владельца)');
+  if (!entered) return;
 
-  const trimmed = pass.trim();
-  if (trimmed === 'copperdub' || trimmed === 'admin' || trimmed.startsWith('ghp_')) {
+  const trimmed = entered.trim();
+  if (trimmed.startsWith('ghp_') || trimmed.startsWith('github_pat_')) {
+    localStorage.setItem('copperdub_gh_token', trimmed);
     localStorage.setItem('copperdub_admin_auth', '1');
-    if (trimmed.startsWith('ghp_')) {
-      localStorage.setItem('copperdub_gh_token', trimmed);
-    }
     checkAuthStatus();
     openAdminModal(animeId);
   } else {
-    alert('❌ Неверный пароль администратора.');
+    alert('❌ Доступ запрещён!\nВход в админ-панель возможен ТОЛЬКО по личному GitHub токену (ghp_...).\nОбычные пароли отключены для безопасности.');
+  }
+}
+
+function logoutAdmin() {
+  if (confirm('Выйти из панели управления и удалить токен из этого браузера?')) {
+    localStorage.removeItem('copperdub_gh_token');
+    localStorage.removeItem('copperdub_admin_auth');
+    closeAdminModal();
+    checkAuthStatus();
+    alert('✓ Вы успешно вышли из админ-панели.');
   }
 }
 
@@ -1074,6 +1086,11 @@ function setupEventListeners() {
   document.getElementById('btn-admin-save-github').addEventListener('click', publishCatalogToGitHub);
   document.getElementById('btn-admin-new-anime').addEventListener('click', createNewAnimePrompt);
   document.getElementById('btn-adm-add-episode').addEventListener('click', adminAddEpisodeRow);
+  
+  const btnLogout = document.getElementById('btn-admin-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', logoutAdmin);
+  }
 
   // Live image previews in admin
   admPosterUrl.addEventListener('input', (e) => {
