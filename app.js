@@ -119,7 +119,9 @@ async function loadAnimeList() {
 
     if (loaded && allAnime && allAnime.length > 0) {
       updateStats();
+      renderLatestEpisodeReminder();
       renderGrid();
+      checkAuthStatus();
     } else {
       animeGrid.innerHTML = `<div class="error-msg">Каталог пуст или загружается...</div>`;
     }
@@ -144,6 +146,84 @@ function updateStats() {
     totalEps += (a.episodes ? a.episodes.length : (a.episodes_done || 0));
   });
   if (statEpisodesCount) statEpisodesCount.textContent = totalEps;
+}
+
+// Render Latest Episode Reminder Banner
+function renderLatestEpisodeReminder() {
+  const container = document.getElementById('latest-release-section');
+  if (!container || !allAnime || allAnime.length === 0) return;
+
+  // Find the episode with the highest tg_message_id across all anime
+  let latestEp = null;
+  let latestAnime = null;
+  let maxTgId = -1;
+
+  allAnime.forEach(anime => {
+    if (anime.episodes && Array.isArray(anime.episodes)) {
+      anime.episodes.forEach(ep => {
+        const tgId = Number(ep.tg_message_id) || 0;
+        if (tgId > maxTgId) {
+          maxTgId = tgId;
+          latestEp = ep;
+          latestAnime = anime;
+        }
+      });
+    }
+  });
+
+  // Fallback: if no tg_message_id found, pick the last episode of the first anime
+  if (!latestEp) {
+    for (const anime of allAnime) {
+      if (anime.episodes && anime.episodes.length > 0) {
+        latestAnime = anime;
+        latestEp = anime.episodes[anime.episodes.length - 1];
+        break;
+      }
+    }
+  }
+
+  if (!latestEp || !latestAnime) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  const posterEl = document.getElementById('latest-ep-poster');
+  const titleEl = document.getElementById('latest-ep-anime-title');
+  const epTitleEl = document.getElementById('latest-ep-title');
+  const metaEl = document.getElementById('latest-ep-meta');
+  const watchBtn = document.getElementById('btn-watch-latest-ep');
+  const posterWrap = document.getElementById('latest-ep-poster-wrap');
+
+  if (posterEl) {
+    posterEl.src = latestAnime.poster_url || '';
+    posterEl.alt = latestAnime.title_ru || '';
+  }
+  if (titleEl) {
+    titleEl.textContent = latestAnime.title_ru || '';
+    titleEl.onclick = () => openAnimeModal(latestAnime.id);
+  }
+  if (posterWrap) {
+    posterWrap.onclick = () => openAnimeModal(latestAnime.id);
+  }
+  if (epTitleEl) {
+    const epNum = latestEp.episode_num || `Серия ${latestEp.episode_order || ''}`;
+    const epName = latestEp.title && latestEp.title !== epNum ? ` • ${latestEp.title}` : '';
+    epTitleEl.textContent = `${epNum}${epName}`;
+  }
+  if (metaEl) {
+    const cast = latestEp.cast_credits || latestAnime.cast_credits || 'Copper Dub';
+    metaEl.textContent = `🎙 Озвучка: ${cast}`;
+  }
+  if (watchBtn) {
+    watchBtn.onclick = () => {
+      if (latestEp.tg_post_url) {
+        openEpisodeInTelegram(latestEp.tg_post_url);
+      } else {
+        openAnimeModal(latestAnime.id);
+      }
+    };
+  }
 }
 
 // Render Anime Cards
@@ -337,6 +417,43 @@ function closeAnimeModal() {
   animeModal.classList.remove('active');
   animeModal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+}
+
+// --- ADMIN ACCESS & AUTHENTICATION ---
+
+function checkAuthStatus() {
+  const isAuth = localStorage.getItem('copperdub_admin_auth') === '1' || Boolean(localStorage.getItem('copperdub_gh_token'));
+  const btnOpenAdmin = document.getElementById('btn-open-admin');
+  if (btnOpenAdmin) {
+    btnOpenAdmin.style.display = isAuth ? 'inline-flex' : 'none';
+  }
+  const editRows = document.querySelectorAll('.admin-actions-row');
+  editRows.forEach(row => {
+    row.style.display = isAuth ? 'block' : 'none';
+  });
+}
+
+function checkAdminAccessAndOpen(animeId = null) {
+  const isAuth = localStorage.getItem('copperdub_admin_auth') === '1' || Boolean(localStorage.getItem('copperdub_gh_token'));
+  if (isAuth) {
+    openAdminModal(animeId);
+    return;
+  }
+
+  const pass = prompt('🔐 Вход в панель администратора Copper Dub:\nВведите пароль или ваш токен GitHub:');
+  if (!pass) return;
+
+  const trimmed = pass.trim();
+  if (trimmed === 'copperdub' || trimmed === 'admin' || trimmed.startsWith('ghp_')) {
+    localStorage.setItem('copperdub_admin_auth', '1');
+    if (trimmed.startsWith('ghp_')) {
+      localStorage.setItem('copperdub_gh_token', trimmed);
+    }
+    checkAuthStatus();
+    openAdminModal(animeId);
+  } else {
+    alert('❌ Неверный пароль администратора.');
+  }
 }
 
 // --- ADMIN PANEL FUNCTIONS ---
@@ -679,7 +796,52 @@ function setupEventListeners() {
 
   document.getElementById('admin-close-x').addEventListener('click', closeAdminModal);
   document.getElementById('admin-close-backdrop').addEventListener('click', closeAdminModal);
-  document.getElementById('btn-open-admin').addEventListener('click', () => openAdminModal());
+  // Stealth / Secret Admin Openers:
+  // 1. Hotkey: Ctrl + Shift + A (or Alt + A)
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a' || e.code === 'KeyA')) ||
+        (e.altKey && (e.key === 'a' || e.key === 'A' || e.code === 'KeyA'))) {
+      e.preventDefault();
+      checkAdminAccessAndOpen();
+    }
+  });
+
+  // 2. Secret triple-click on header logo
+  let logoClicks = 0;
+  let logoTimer = null;
+  const headerLogo = document.getElementById('header-logo');
+  if (headerLogo) {
+    headerLogo.addEventListener('click', () => {
+      logoClicks++;
+      clearTimeout(logoTimer);
+      if (logoClicks >= 3) {
+        logoClicks = 0;
+        checkAdminAccessAndOpen();
+      } else {
+        logoTimer = setTimeout(() => { logoClicks = 0; }, 1200);
+      }
+    });
+  }
+
+  // 3. Secret click on footer brand
+  const footerBrand = document.getElementById('footer-brand');
+  if (footerBrand) {
+    footerBrand.addEventListener('click', () => {
+      checkAdminAccessAndOpen();
+    });
+  }
+
+  // 4. Check URL hash / query on startup
+  if (window.location.hash === '#admin' || window.location.search.includes('admin')) {
+    setTimeout(() => {
+      checkAdminAccessAndOpen();
+    }, 400);
+  }
+
+  const btnOpenAdmin = document.getElementById('btn-open-admin');
+  if (btnOpenAdmin) {
+    btnOpenAdmin.addEventListener('click', () => checkAdminAccessAndOpen());
+  }
 
   // Edit in Admin button inside Anime details modal
   const btnEditThis = document.getElementById('btn-edit-this-anime');
@@ -687,7 +849,7 @@ function setupEventListeners() {
     btnEditThis.addEventListener('click', () => {
       const id = currentAnime ? currentAnime.id : null;
       closeAnimeModal();
-      openAdminModal(id);
+      checkAdminAccessAndOpen(id);
     });
   }
 
@@ -718,25 +880,7 @@ function setupEventListeners() {
     }
   });
 
-  // Sync with Shikimori button (header)
-  const btnSyncShikimori = document.getElementById('btn-sync-shikimori');
-  if (btnSyncShikimori) {
-    btnSyncShikimori.addEventListener('click', async () => {
-      btnSyncShikimori.textContent = '🌸 Загрузка...';
-      btnSyncShikimori.disabled = true;
-      try {
-        const res = await fetch('/api/shikimori/sync-all', { method: 'POST' });
-        const data = await res.json();
-        alert(`Синхронизация с Shikimori завершена!\nОбновлено обложек: ${data.updated_anime_count}`);
-        await loadAnimeList();
-      } catch (err) {
-        alert('Загружено с Shikimori.');
-      } finally {
-        btnSyncShikimori.textContent = '🌸 Shikimori';
-        btnSyncShikimori.disabled = false;
-      }
-    });
-  }
+
 
   // Close modals on Escape key
   window.addEventListener('keydown', (e) => {
