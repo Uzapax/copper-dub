@@ -178,6 +178,26 @@ body.inside-telegram #header-tg-channel-link {
   box-shadow: 0 0 16px var(--primary-glow);
 }
 
+.logo-avatar-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 14px var(--primary-glow);
+  flex-shrink: 0;
+  background: #fff;
+  transition: transform 0.25s ease;
+}
+.logo-area:hover .logo-avatar-wrap {
+  transform: scale(1.08) rotate(4deg);
+}
+.logo-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .logo-title {
   font-family: var(--font-heading);
   font-size: 18px;
@@ -1123,6 +1143,10 @@ body.inside-telegram #header-tg-channel-link {
     height: 32px;
     font-size: 13px;
   }
+  .logo-avatar-wrap {
+    width: 34px;
+    height: 34px;
+  }
   .logo-title {
     font-size: 16px;
   }
@@ -1748,4 +1772,196 @@ textarea#adm-desc {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
+}
+
+/* ==========================================================================
+   THEME COPPER (Фирменный стиль «Копер» / Цвета из Твич-обложки)
+   - Основной тон: Медный оранжевый #F07A28 (рыжие волосы Копер)
+   - Акцент: Изумрудный зелёный #059669 (глаза и кристалл)
+   - Фоновые тона: Светлый чистый манга-фон #F6F7FB, белоснежные карточки #FFFFFF
+   - Текст и контуры: Чернильный графит #181922
+   ========================================================================== */
+
+body.theme-copper {
+  --bg-dark: #F5F6FA;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFF9F4;
+  --border-color: rgba(240, 122, 40, 0.18);
+  
+  --primary: #F07A28;
+  --primary-glow: rgba(240, 122, 40, 0.35);
+  --primary-hover: #D96515;
+  
+  --accent-cyan: #0D9488;
+  --accent-green: #059669; /* Изумрудные глаза Копер */
+  --accent-yellow: #D97706;
+  --accent-purple: #7C3AED;
+
+  --text-main: #181922;
+  --text-muted: #4B5565;
+  --text-dim: #6B7280;
+}
+
+body.theme-copper .site-header {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(240, 122, 40, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+body.theme-copper .logo-title {
+  color: #181922;
+}
+
+body.theme-copper .logo-subtitle {
+  color: #6B7280;
+}
+
+body.theme-copper .stat-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(240, 122, 40, 0.18);
+  box-shadow: 0 4px 16px rgba(240, 122, 40, 0.06);
+}
+
+body.theme-copper .stat-num {
+  color: #181922;
+}
+
+body.theme-copper .latest-release-card {
+  background: linear-gradient(135deg, rgba(240, 122, 40, 0.1) 0%, #FFFFFF 100%);
+  border: 1px solid rgba(240, 122, 40, 0.35);
+  box-shadow: 0 8px 30px rgba(240, 122, 40, 0.12);
+}
+
+body.theme-copper .latest-release-anime-name {
+  color: #181922;
+}
+
+body.theme-copper .latest-release-meta {
+  color: #4B5565;
+}
+
+body.theme-copper .cat-tab {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #4B5565;
+}
+
+body.theme-copper .cat-tab:hover {
+  background: #FFF7F2;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+body.theme-copper .cat-tab.active {
+  background: linear-gradient(135deg, rgba(240, 122, 40, 0.14) 0%, rgba(240, 122, 40, 0.04) 100%);
+  border-color: var(--primary);
+  color: #D96515;
+  box-shadow: 0 4px 16px rgba(240, 122, 40, 0.18);
+}
+
+body.theme-copper .category-desc {
+  color: #6B7280;
+}
+
+body.theme-copper .pill {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #4B5565;
+}
+
+body.theme-copper .pill:hover {
+  background: #FFF7F2;
+  color: var(--primary);
+}
+
+body.theme-copper .pill.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: 0 2px 12px var(--primary-glow);
+}
+
+body.theme-copper .search-box input {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #181922;
+}
+
+body.theme-copper .search-box input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(240, 122, 40, 0.15);
+}
+
+body.theme-copper .anime-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(240, 122, 40, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+body.theme-copper .anime-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 12px 32px rgba(240, 122, 40, 0.2);
+}
+
+body.theme-copper .card-title-ru {
+  color: #181922;
+}
+
+body.theme-copper .card-cast {
+  color: #6B7280;
+}
+
+body.theme-copper .card-cast b {
+  color: #181922;
+}
+
+body.theme-copper .progress-bar {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+body.theme-copper .progress-text {
+  color: #6B7280;
+}
+
+body.theme-copper .modal-window {
+  background: #FFFFFF;
+  border: 1px solid rgba(240, 122, 40, 0.2);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+body.theme-copper .info-block h5 {
+  color: #6B7280;
+}
+
+body.theme-copper .info-block p {
+  color: #181922;
+}
+
+body.theme-copper .episodes-header h4 {
+  color: #181922;
+}
+
+body.theme-copper .tma-episode-card {
+  background: #F8F9FD;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.theme-copper .tma-episode-card:hover {
+  background: #FFF7F2;
+  border-color: var(--primary);
+}
+
+body.theme-copper .tma-ep-title {
+  color: #181922;
+}
+
+body.theme-copper .tma-ep-meta {
+  color: #6B7280;
+}
+
+body.theme-copper .site-footer {
+  background: #FFFFFF;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  color: #6B7280;
 }
