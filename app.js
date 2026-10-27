@@ -65,6 +65,7 @@ const admTitleEn = document.getElementById('adm-title-en');
 const admCategory = document.getElementById('adm-category');
 const admFormat = document.getElementById('adm-format');
 const admStatus = document.getElementById('adm-status');
+const admEpisodesDone = document.getElementById('adm-episodes-done');
 const admEpisodesTotal = document.getElementById('adm-episodes-total');
 const admPosterUrl = document.getElementById('adm-poster-url');
 const admPosterPreview = document.getElementById('adm-poster-preview');
@@ -119,6 +120,7 @@ async function loadAnimeList() {
 
     if (loaded && allAnime && allAnime.length > 0) {
       updateStats();
+      renderHeroBanner();
       renderLatestEpisodeReminder();
       renderGrid();
       checkAuthStatus();
@@ -216,13 +218,44 @@ function renderLatestEpisodeReminder() {
     metaEl.textContent = `🎙 Озвучка: ${cast}`;
   }
   if (watchBtn) {
-    watchBtn.onclick = () => {
-      if (latestEp.tg_post_url) {
-        openEpisodeInTelegram(latestEp.tg_post_url);
+    watchBtn.onclick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const url = latestEp.tg_post_url || (latestEp.tg_message_id ? `https://t.me/gygdub/${latestEp.tg_message_id}` : '');
+      if (url) {
+        watchEpisodeInTelegram(url);
       } else {
         openAnimeModal(latestAnime.id);
       }
     };
+  }
+}
+
+// Render Flagship Hero Banner dynamically from catalog data
+function renderHeroBanner() {
+  const bleach = allAnime.find(a => a.id === 1 || (a.title_ru && a.title_ru.includes('Блич')));
+  if (!bleach) return;
+
+  const epsDone = bleach.episodes ? bleach.episodes.length : (bleach.episodes_done || 32);
+  const epsTotal = bleach.episodes_total || 50;
+
+  const heroTitle = document.getElementById('hero-title');
+  const heroSubtitle = document.getElementById('hero-subtitle');
+  const heroPlayBtn = document.getElementById('hero-play-btn');
+  const heroPosterImg = document.querySelector('.hero-poster-img');
+
+  if (heroTitle) heroTitle.textContent = bleach.title_ru;
+  if (heroSubtitle) {
+    heroSubtitle.textContent = `${bleach.title_en || 'Bleach: Thousand-Year Blood War'} • ${epsDone} из ${epsTotal} серий (${bleach.format || 'Куры 1–3'})`;
+  }
+  if (heroPlayBtn) {
+    heroPlayBtn.textContent = `▶ Смотреть серии (1–${epsDone})`;
+    heroPlayBtn.onclick = () => openAnimeModal(bleach.id);
+  }
+  if (heroPosterImg && bleach.poster_url) {
+    heroPosterImg.src = bleach.poster_url;
   }
 }
 
@@ -392,26 +425,56 @@ function watchEpisodeInTelegram(postUrl) {
     return;
   }
 
-  // 1. If in Telegram Mini App: use native Telegram SDK
-  if (isTelegramWebApp && tg && tg.openTelegramLink) {
-    tg.openTelegramLink(postUrl);
-    return;
+  // Normalize postUrl to full https://t.me/ URL
+  let fullUrl = postUrl;
+  if (!fullUrl.startsWith('http')) {
+    if (fullUrl.startsWith('t.me/')) {
+      fullUrl = 'https://' + fullUrl;
+    } else {
+      fullUrl = 'https://t.me/gygdub/' + fullUrl;
+    }
   }
 
-  // 2. In browser: deep link
-  const m = postUrl.match(/t\.me\/([^\/]+)\/(\d+)/);
+  // 1. If in Telegram Mini App (TMA): use native Telegram WebApp SDK
+  if (isTelegramWebApp && tg && tg.openTelegramLink) {
+    try {
+      tg.openTelegramLink(fullUrl);
+      return;
+    } catch (e) {
+      console.warn('tg.openTelegramLink error, fallback to browser link:', e);
+    }
+  }
+
+  // 2. In browser: use tg:// protocol with web link fallback
+  const m = fullUrl.match(/t\.me\/([^\/]+)\/(\d+)/);
   if (m) {
     const channel = m[1];
     const postId = m[2];
     const deepLink = `tg://resolve?domain=${channel}&post=${postId}`;
-    window.location.href = deepLink;
+
+    // Direct anchor click simulation (works on both mobile Safari & Android)
+    const a = document.createElement('a');
+    a.href = deepLink;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Fallback: open web URL if native app didn't capture within 600ms
     setTimeout(() => {
-      window.open(postUrl, '_blank', 'noopener');
-    }, 500);
+      window.open(fullUrl, '_blank', 'noopener');
+    }, 600);
   } else {
-    window.open(postUrl, '_blank', 'noopener');
+    window.open(fullUrl, '_blank', 'noopener');
   }
 }
+
+function openEpisodeInTelegram(postUrl) {
+  watchEpisodeInTelegram(postUrl);
+}
+window.openEpisodeInTelegram = openEpisodeInTelegram;
+window.watchEpisodeInTelegram = watchEpisodeInTelegram;
 
 function closeAnimeModal() {
   animeModal.classList.remove('active');
@@ -513,6 +576,9 @@ function selectAnimeForEdit(animeId) {
   admCategory.value = anime.category || 'main';
   admFormat.value = anime.format || 'ТВ-сериал';
   admStatus.value = anime.status || 'В процессе';
+  if (admEpisodesDone) {
+    admEpisodesDone.value = anime.episodes ? anime.episodes.length : (anime.episodes_done || 0);
+  }
   admEpisodesTotal.value = anime.episodes_total || '';
 
   admPosterUrl.value = anime.poster_url || '';
@@ -662,9 +728,13 @@ function saveCurrentAnimeForm(e) {
   });
 
   currentEditingAnime.episodes = updatedEpisodes;
-  currentEditingAnime.episodes_done = updatedEpisodes.length;
+  const doneVal = admEpisodesDone ? parseInt(admEpisodesDone.value) : null;
+  currentEditingAnime.episodes_done = (doneVal !== null && !isNaN(doneVal)) ? doneVal : updatedEpisodes.length;
+  currentEditingAnime.episodes_total = parseInt(admEpisodesTotal.value) || 0;
 
   updateStats();
+  renderHeroBanner();
+  renderLatestEpisodeReminder();
   renderGrid();
   renderAdminSidebar();
 
