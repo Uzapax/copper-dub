@@ -78,9 +78,9 @@ const admAliases = document.getElementById('adm-aliases');
 const admEpCount = document.getElementById('adm-ep-count');
 const admEpisodesTbody = document.getElementById('adm-episodes-tbody');
 
-// --- THEME SWITCHER (Dark vs Copper) ---
+// --- THEME SWITCHER (Белая тема vs Тёмная тема) ---
 function initTheme() {
-  const savedTheme = localStorage.getItem('copperdub_theme') || 'copper';
+  const savedTheme = localStorage.getItem('copperdub_theme') || 'white';
   applyTheme(savedTheme);
 
   const themeBtn = document.getElementById('theme-toggle-btn');
@@ -92,21 +92,24 @@ function initTheme() {
 function applyTheme(themeName) {
   const icon = document.getElementById('theme-icon');
   const label = document.getElementById('theme-label');
+  const isWhite = (themeName === 'white' || themeName === 'copper' || themeName === 'light');
 
-  if (themeName === 'copper') {
+  if (isWhite) {
+    document.body.classList.add('theme-white');
     document.body.classList.add('theme-copper');
-    if (icon) icon.textContent = '🦊';
-    if (label) label.textContent = 'Копер';
+    if (icon) icon.textContent = '☀️';
+    if (label) label.textContent = 'Белая тема';
   } else {
+    document.body.classList.remove('theme-white');
     document.body.classList.remove('theme-copper');
     if (icon) icon.textContent = '🌙';
-    if (label) label.textContent = 'Тёмная';
+    if (label) label.textContent = 'Тёмная тема';
   }
 }
 
 function toggleTheme() {
-  const isCopper = document.body.classList.contains('theme-copper');
-  const nextTheme = isCopper ? 'dark' : 'copper';
+  const isWhite = document.body.classList.contains('theme-white') || document.body.classList.contains('theme-copper');
+  const nextTheme = isWhite ? 'dark' : 'white';
   localStorage.setItem('copperdub_theme', nextTheme);
   applyTheme(nextTheme);
 }
