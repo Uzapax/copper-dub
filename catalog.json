@@ -51,7 +51,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "main"
   },
   {
     "id": 10,
@@ -88,7 +89,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "main"
   },
   {
     "id": 4,
@@ -142,7 +144,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "other"
   },
   {
     "id": 3,
@@ -332,7 +335,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "main"
   },
   {
     "id": 2,
@@ -522,7 +526,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "main"
   },
   {
     "id": 1,
@@ -1086,7 +1091,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "main"
   },
   {
     "id": 8,
@@ -1123,7 +1129,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "other"
   },
   {
     "id": 7,
@@ -1137,8 +1144,8 @@
     "cast": "Команда Copper Dub (многоголоска)",
     "notes": "Полнометражный фильм (119 мин) полностью озвучен.",
     "description": "Утопическое будущее, где нанотехнологии искоренили болезни. Трое девушек объявляют протест обществу абсолютного здоровья, что приводит к мировой катастрофе.",
-    "poster_url": "https://shikimori.one/system/animes/original/10799.jpg?1711946129",
-    "banner_url": "https://shikimori.one/system/screenshots/original/bd989760e7526293ac3a7fe88e17f89403268c98.jpg?1694254620",
+    "poster_url": "https://shikimori.one/system/animes/original/28211.jpg",
+    "banner_url": "https://shikimori.one/system/screenshots/original/30c72c1143899f8ad32b6ad59f37cff9d71c1722.jpg",
     "aliases": "Гармония, Project Itoh Harmony, Harmony",
     "created_at": "2026-10-27 08:26:08",
     "updated_at": "2026-10-27 08:39:30",
@@ -1160,7 +1167,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "other"
   },
   {
     "id": 6,
@@ -1197,7 +1205,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "other"
   },
   {
     "id": 5,
@@ -1234,7 +1243,8 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:26:08"
       }
-    ]
+    ],
+    "category": "other"
   },
   {
     "id": 9,
@@ -1248,8 +1258,8 @@
     "cast": "Глеб (Uzapax)",
     "notes": "Ваншот Эйитиро Оды (создателя One Piece). Сабы: Angara. Спонсор: Мансур Кайрат (Boosty).",
     "description": "История странствующего мечника Рюмы, легендарного самурая из страны Вано, который однажды спас город от огнедышащего дракона.",
-    "poster_url": "https://desu.shikimori.one/uploads/poster/animes/56230/main-81d33190e292ce5ef1c633a763cfae97.webp",
-    "banner_url": "https://images.alphacoders.com/134/1349581.png",
+    "poster_url": "https://shikimori.one/system/animes/original/56230.jpg",
+    "banner_url": "https://shikimori.one/system/screenshots/original/e5927ad6bf754bc11ec189c4456942ad053bf995.jpg",
     "aliases": "Монстры, Монстры: Сто три милости, Monsters, 103 Mercies",
     "created_at": "2026-10-27 08:26:08",
     "updated_at": "2026-10-27 08:32:11",
@@ -1288,6 +1298,7 @@
         "mime_type": "video/mp4",
         "created_at": "2026-10-27 08:32:11"
       }
-    ]
+    ],
+    "category": "main"
   }
 ]
