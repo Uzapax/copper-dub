@@ -955,56 +955,140 @@ async function publishCatalogToGitHub() {
   }
 }
 
-// Trigger GitHub Actions Workflow to sync new episodes from Telegram
-async function triggerTelegramSync() {
-  const token = getGitHubToken();
-  if (!token) {
-    alert('Сначала укажите ваш GitHub токен в поле вверху админки.');
-    return;
-  }
+// --- DIRECT TELEGRAM SYNC VIA BOT API (100% В БРАУЗЕРЕ БЕЗ СЕРВЕРОВ) ---
+const TG_BOT_SYNC_TOKEN = "8898204093:AAGc8VIVHQM0L3OSpZLZLZGJeet1EAqnXsw";
+const TG_CHANNEL_NAME = "gygdub";
 
+async function triggerTelegramSync() {
   const btn = document.getElementById('btn-admin-sync-tg');
   const origText = btn ? btn.textContent : '🔄 Синхронизировать с TG';
   if (btn) {
-    btn.textContent = '⏳ Синхронизация...';
+    btn.textContent = '⏳ Сканирую канал...';
     btn.disabled = true;
   }
 
   try {
-    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/sync.yml/dispatches`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ ref: 'main' })
-    });
+    // 1. Fetch channel updates from Telegram Bot API
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_SYNC_TOKEN}/getUpdates?allowed_updates=["channel_post"]`);
+    if (!res.ok) {
+      throw new Error('Telegram Bot API вернул ошибку ' + res.status);
+    }
+    const data = await res.json();
+    const updates = data.result || [];
+    
+    let addedCount = 0;
+    const addedTitles = [];
 
-    if (res.status === 204 || res.ok) {
-      showAutoSaveIndicator('🚀 Синхронизация запущена в GitHub Actions!');
-      alert('🚀 Скрипт синхронизации запущен в GitHub Actions!\n\nРобот проверяет канал @gygdub и находит новые серии.\nЧерез 30–60 секунд сайт автоматически обновится.');
-      
-      // Auto-reload catalog after 35 seconds
-      setTimeout(async () => {
-        await loadAnimeList();
-        renderGrid();
-        renderHeroBanner();
-        renderLatestEpisodeReminder();
-        renderAdminSidebar();
-        showAutoSaveIndicator('✓ Каталог обновлен');
-      }, 35000);
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      if (res.status === 404) {
-        alert('⚠️ Файл сценария .github/workflows/sync.yml не найден в репозитории GitHub.\n\nСоздайте файл sync.yml на GitHub по инструкции, чтобы кнопка могла его запускать.');
+    for (const u of updates) {
+      const post = u.channel_post;
+      if (!post) continue;
+
+      const caption = post.caption || post.text || '';
+      const msgId = post.message_id;
+      if (!caption) continue;
+
+      // Match anime in allAnime
+      const lower = caption.toLowerCase();
+      let matched = null;
+      for (const a of allAnime) {
+        const keys = [a.title_ru.toLowerCase()];
+        if (a.title_en) keys.push(a.title_en.toLowerCase());
+        if (a.aliases) {
+          a.aliases.split(',').forEach(x => {
+            const clean = x.trim().toLowerCase();
+            if (clean) keys.push(clean);
+          });
+        }
+        const firstWord = a.title_ru.split(/[: (]/)[0].trim().toLowerCase();
+        if (firstWord.length >= 3) keys.push(firstWord);
+
+        for (const k of keys) {
+          if (k.length >= 3 && lower.includes(k)) {
+            matched = a;
+            break;
+          }
+        }
+        if (matched) break;
+      }
+
+      if (!matched) continue;
+
+      // Extract episode number
+      let epOrder = 1;
+      let epNumStr = '1 серия';
+      const mNum = lower.match(/(\d+)\s*(?:серия|эп|эпизод)/);
+      if (mNum) {
+        epOrder = parseInt(mNum[1]);
+      }
+      const mFull = caption.match(/(\d+\s*(?:серия|эп|эпизод)[^\n]*)/i);
+      if (mFull) {
+        epNumStr = mFull[1].trim();
       } else {
-        alert('Ошибка при запуске синхронизации: ' + (errData.message || res.statusText));
+        epNumStr = `${epOrder} серия`;
+      }
+
+      const fileSize = post.video ? post.video.file_size : 0;
+      const postUrl = `https://t.me/${TG_CHANNEL_NAME}/${msgId}`;
+
+      // Check existing episode
+      if (!matched.episodes) matched.episodes = [];
+      let foundEp = matched.episodes.find(e => 
+        e.tg_message_id === msgId || 
+        e.episode_order === epOrder || 
+        (e.episode_num && e.episode_num.includes(String(epOrder)))
+      );
+
+      if (foundEp) {
+        if (!foundEp.tg_message_id || foundEp.tg_message_id !== msgId) {
+          foundEp.tg_message_id = msgId;
+          foundEp.tg_post_url = postUrl;
+          foundEp.episode_num = epNumStr;
+          if (fileSize) foundEp.file_size = fileSize;
+          addedCount++;
+          addedTitles.push(`${matched.title_ru} (${epNumStr})`);
+        }
+      } else {
+        const newEp = {
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          anime_id: matched.id,
+          episode_num: epNumStr,
+          episode_order: epOrder,
+          title: epNumStr,
+          cast_credits: matched.cast || 'Copper Dub',
+          sub_credits: '',
+          notes: caption.slice(0, 150),
+          tg_message_id: msgId,
+          tg_post_url: postUrl,
+          file_size: fileSize
+        };
+        matched.episodes.push(newEp);
+        matched.episodes.sort((a, b) => (a.episode_order || 0) - (b.episode_order || 0));
+        matched.episodes_done = matched.episodes.filter(e => e.tg_message_id).length;
+        addedCount++;
+        addedTitles.push(`${matched.title_ru} (${epNumStr})`);
       }
     }
+
+    if (addedCount > 0) {
+      updateStats();
+      renderHeroBanner();
+      renderLatestEpisodeReminder();
+      renderGrid();
+      if (currentEditingAnime) {
+        selectAnimeForEdit(currentEditingAnime.id);
+      } else {
+        renderAdminSidebar();
+      }
+
+      // Automatically publish to GitHub so the whole site updates!
+      await publishCatalogToGitHub();
+
+      alert(`🎉 УСПЕШНО!\n\nНайдено и добавлено серий: ${addedCount}\n${addedTitles.join('\n')}\n\nВсе изменения сразу сохранены и опубликованы на сайт!`);
+    } else {
+      alert('ℹ️ Новых серий в канале @gygdub пока не появилось. Каталог полностью актуален!');
+    }
   } catch (err) {
-    alert('Сетевая ошибка: ' + err.message);
+    alert('Ошибка при сканировании Telegram: ' + err.message);
   } finally {
     if (btn) {
       btn.textContent = origText;
