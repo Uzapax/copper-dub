@@ -955,6 +955,64 @@ async function publishCatalogToGitHub() {
   }
 }
 
+// Trigger GitHub Actions Workflow to sync new episodes from Telegram
+async function triggerTelegramSync() {
+  const token = getGitHubToken();
+  if (!token) {
+    alert('Сначала укажите ваш GitHub токен в поле вверху админки.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-admin-sync-tg');
+  const origText = btn ? btn.textContent : '🔄 Синхронизировать с TG';
+  if (btn) {
+    btn.textContent = '⏳ Синхронизация...';
+    btn.disabled = true;
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/sync.yml/dispatches`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ref: 'main' })
+    });
+
+    if (res.status === 204 || res.ok) {
+      showAutoSaveIndicator('🚀 Синхронизация запущена в GitHub Actions!');
+      alert('🚀 Скрипт синхронизации запущен в GitHub Actions!\n\nРобот проверяет канал @gygdub и находит новые серии.\nЧерез 30–60 секунд сайт автоматически обновится.');
+      
+      // Auto-reload catalog after 35 seconds
+      setTimeout(async () => {
+        await loadAnimeList();
+        renderGrid();
+        renderHeroBanner();
+        renderLatestEpisodeReminder();
+        renderAdminSidebar();
+        showAutoSaveIndicator('✓ Каталог обновлен');
+      }, 35000);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 404) {
+        alert('⚠️ Файл сценария .github/workflows/sync.yml не найден в репозитории GitHub.\n\nСоздайте файл sync.yml на GitHub по инструкции, чтобы кнопка могла его запускать.');
+      } else {
+        alert('Ошибка при запуске синхронизации: ' + (errData.message || res.statusText));
+      }
+    }
+  } catch (err) {
+    alert('Сетевая ошибка: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  }
+}
+
 // Setup Event Listeners
 function setupEventListeners() {
   // Category tabs
@@ -1086,6 +1144,11 @@ function setupEventListeners() {
   document.getElementById('btn-admin-save-github').addEventListener('click', publishCatalogToGitHub);
   document.getElementById('btn-admin-new-anime').addEventListener('click', createNewAnimePrompt);
   document.getElementById('btn-adm-add-episode').addEventListener('click', adminAddEpisodeRow);
+  
+  const btnSyncTg = document.getElementById('btn-admin-sync-tg');
+  if (btnSyncTg) {
+    btnSyncTg.addEventListener('click', triggerTelegramSync);
+  }
   
   const btnLogout = document.getElementById('btn-admin-logout');
   if (btnLogout) {
