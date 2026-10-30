@@ -1,0 +1,40 @@
+name: Telegram Channel Sync
+
+    on:
+      workflow_dispatch:
+      schedule:
+        - cron: '0 */3 * * *'
+
+    permissions:
+      contents: write
+
+    jobs:
+      sync-episodes:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.12'
+
+          - name: Install dependencies
+            run: pip install telethon
+
+          - name: Run Telegram Synchronizer
+            env:
+              TG_API_ID: ${{ secrets.TG_API_ID }}
+              TG_API_HASH: ${{ secrets.TG_API_HASH }}
+              TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+              TG_CHANNEL: 'gygdub'
+            run: python sync.py
+
+          - name: Commit and Push if updated
+            run: |
+              git config --local user.email "action@github.com"
+              git config --local user.name "CopperDub Bot"
+              git add catalog.json
+              git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-sync: New episodes from @gygdub
+              [skip ci]" && git push)
