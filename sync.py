@@ -83,9 +83,12 @@ async def sync():
     changes = False
     added_count = 0
     
-    # Check last 40 posts by ID
-    # Get highest message ID by checking first
-    test_ids = list(range(60, 110))
+    # Dynamic post scan: scan from recent messages up to +80 posts ahead
+    existing_tg_ids = [e.get("tg_message_id") for a in catalog for e in a.get("episodes", []) if e.get("tg_message_id")]
+    highest_id = max(existing_tg_ids) if existing_tg_ids else 70
+    start_id = max(1, highest_id - 30)
+    end_id = highest_id + 80
+    test_ids = list(range(start_id, end_id))
     msgs = await client.get_messages(chat, ids=test_ids)
     
     for m in msgs:
