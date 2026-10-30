@@ -790,10 +790,15 @@ function adminDeleteEpisode(idx) {
   if (!currentEditingAnime || !currentEditingAnime.episodes) return;
   syncCurrentAnimeFromForm();
   currentEditingAnime.episodes.splice(idx, 1);
+  if (admEpisodesDone) {
+    admEpisodesDone.value = currentEditingAnime.episodes.filter(e => e.tg_message_id).length;
+  }
   renderAdminEpisodesTable(currentEditingAnime.episodes);
   syncCurrentAnimeFromForm();
   updateSidebarItem(currentEditingAnime);
-  showAutoSaveIndicator('✓ Серия удалена');
+  updateStats();
+  renderGrid();
+  showAutoSaveIndicator('✓ Серия удалена. Не забудьте «💾 Опубликовать на GitHub»');
 }
 
 function adminAddEpisodeRow() {
