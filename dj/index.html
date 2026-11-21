@@ -187,9 +187,6 @@
   </div>
 
   <script>
-    const STATUS_RAW_URL = 'https://raw.githubusercontent.com/Uzapax/copper-dub/main/stream_dj_status.json';
-    let checkInterval = null;
-
     async function checkStatus() {
       const badge = document.getElementById('badge');
       const badgeText = document.getElementById('badge-text');
@@ -197,32 +194,47 @@
       const spinner = document.getElementById('loading-spinner');
       const actions = document.getElementById('actions');
 
+      let data = null;
+
+      // 1. Try instant GitHub API
       try {
-        const bustUrl = STATUS_RAW_URL + '?v=' + Date.now();
-        const res = await fetch(bustUrl, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Status not available');
-        const data = await res.json();
-
-        // Check if stream is active and has tunnel URL
-        if (data.online && data.url) {
-          badge.className = 'badge online';
-          badgeText.innerText = 'Стрим онлайн! Перенаправление...';
-          desc.innerText = 'Открываем стол заказов треков...';
-          spinner.style.display = 'block';
-          actions.style.display = 'none';
-
-          // Redirect to the viewer order page
-          const targetUrl = data.url.replace(/\/+$/, '') + '/c/';
-          setTimeout(() => {
-            window.location.replace(targetUrl);
-          }, 350);
-          return;
-        } else {
-          showOffline();
+        const res = await fetch('https://api.github.com/repos/Uzapax/copper-dub/contents/stream_dj_status.json', {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const decoded = decodeURIComponent(escape(atob(json.content)));
+          data = JSON.parse(decoded);
         }
-      } catch (err) {
-        showOffline();
+      } catch (e) {}
+
+      // 2. Fallback to raw GitHub
+      if (!data) {
+        try {
+          const res = await fetch('https://raw.githubusercontent.com/Uzapax/copper-dub/main/stream_dj_status.json?v=' + Date.now());
+          if (res.ok) {
+            data = await res.json();
+          }
+        } catch (e) {}
       }
+
+      // 3. Evaluate state
+      if (data && data.online && data.url) {
+        badge.className = 'badge online';
+        badgeText.innerText = 'Стрим онлайн! Перенаправление...';
+        desc.innerText = 'Открываем стол заказов треков...';
+        spinner.style.display = 'block';
+        actions.style.display = 'none';
+
+        const channel = data.channel || 'Uzapax_Dub';
+        const targetUrl = data.url.replace(/\/+$/, '') + '/c/' + channel;
+        setTimeout(() => {
+          window.location.replace(targetUrl);
+        }, 200);
+        return;
+      }
+
+      showOffline();
     }
 
     function showOffline() {
@@ -243,7 +255,7 @@
     checkStatus();
 
     // Auto poll every 6 seconds while offline
-    checkInterval = setInterval(checkStatus, 6000);
+    setInterval(checkStatus, 6000);
   </script>
 </body>
 </html>
